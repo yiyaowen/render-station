@@ -176,13 +176,43 @@
     <ClInclude Include="vmesh.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="shaders\rs.hlsl">
+    <None Include="shaders\default.hlsl">
       <FileType>Document</FileType>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">main</EntryPointName>
     </None>
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\light-utils.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\subdivision-gs.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\billboard-gs.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\cylinder-generator-gs.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\explosion-gs.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\ver-normal-visible-gs.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\tri-normal-visible-gs.hlsl">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

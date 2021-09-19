@@ -11,20 +11,20 @@
 
 void translateObjectGeometry(float dx, float dy, float dz, ObjectGeometry* geo) {
     XMMATRIX translationMat = XMMatrixTranslation(dx, dy, dz);
-    applyObjectGeometryTransformation(translationMat, geo);
+    applyObjectGeometryTransform(translationMat, geo);
 }
 
 void rotateObjectGeometry(float rx, float ry, float rz, ObjectGeometry* geo) {
     XMMATRIX rotationMat = XMMatrixRotationRollPitchYaw(rx, ry, rz);
-    applyObjectGeometryTransformation(rotationMat, geo);
+    applyObjectGeometryTransform(rotationMat, geo);
 }
 
 void scaleObjectGeometry(float sx, float sy, float sz, ObjectGeometry* geo) {
     XMMATRIX scalingMat = XMMatrixScaling(sx, sy, sz);
-    applyObjectGeometryTransformation(scalingMat, geo);
+    applyObjectGeometryTransform(scalingMat, geo);
 }
 
-void applyObjectGeometryTransformation(XMMATRIX trans, ObjectGeometry* geo) {
+void XM_CALLCONV applyObjectGeometryTransform(FXMMATRIX trans, ObjectGeometry* geo) {
     XMMATRIX invTrTrans = XMMatrixTranspose(XMMatrixInverse(&XMMatrixDeterminant(trans), trans));
     for (auto& ver : geo->vertices) {
         XMVECTOR pos = XMLoadFloat3(&ver.pos);
@@ -36,7 +36,7 @@ void applyObjectGeometryTransformation(XMMATRIX trans, ObjectGeometry* geo) {
     }
 }
 
-XMVECTOR calcTriangleClockwiseNormal(FXMVECTOR v0, FXMVECTOR v1, FXMVECTOR v2) {
+XMVECTOR XM_CALLCONV calcTriangleClockwiseNormal(FXMVECTOR v0, FXMVECTOR v1, FXMVECTOR v2) {
     XMVECTOR x = v1 - v0;
     XMVECTOR y = v2 - v0;
     return XMVector3Normalize(XMVector3Cross(x, y));
@@ -119,6 +119,15 @@ void subdivide(ObjectGeometry* geo) {
         geo->indices.push_back(b + 4);
         geo->indices.push_back(b + 5);
     }
+}
+
+void appendVerticesToObjectGeometry(std::vector<Vertex> ver, std::vector<UINT16> idx, ObjectGeometry* objGeo) {
+    UINT count = max(ver.size(), idx.size());
+    for (UINT i = 0; i < count; ++i) {
+        objGeo->vertices.push_back(ver[i]);
+        objGeo->indices.push_back(idx[i]);
+    }
+    objGeo->locationInfo.indexCount += count;
 }
 
 // @ IMPORTANT @ IMPORTANT @ IMPORTANT @ IMPORTANT @ IMPORTANT @ IMPORTANT @ IMPORTANT @
@@ -383,4 +392,103 @@ void generateGeoSphere(float r, int subdivisionLevel, ObjectGeometry* gs) {
     gs->locationInfo.indexCount = gs->indices.size();
     gs->locationInfo.startIndexLocation = 0;
     gs->locationInfo.baseVertexLocation = 0;
+}
+
+/*                    /|\ y
+ *     (m) vertices    |   (m) vertices     (2 * m + 1) vertices
+ * @---@---@---@---@---@---@---@---@---@---@
+ * |   |   |   |   |   |   |   |   |   |   | (n) vertices
+ * @---@---@---@---@---@---@---@---@---@---@
+ * |   |   |   |   |   |   |   |   |   |   |   \
+ * @---@---@---@---@---@---@---@---@---@---@----  x
+ * |   |   |   |   |   |   |   |   |   |   |   /
+ * @---@---@---@---@---@---@---@---@---@---@
+ * |   |   |   |   |   |   |   |   |   |   | (n) vertices
+ * @---@---@---@---@---@---@---@---@---@---@
+ * Total: (2*m + 1) * (2*n + 1) vertices    (2 * n + 1) vertices
+*/
+
+void generateGrid(float w, float h, UINT m, UINT n, ObjectGeometry* grid) {
+    UINT M = 2 * m + 1;
+    UINT N = 2 * n + 1;
+    UINT verCount = M * N;
+    UINT triCount = (M - 1) * (N - 1) * 2;
+    float dx = w / (M - 1);
+    float dy = h / (N - 1);
+    float du = 1.0f / (M - 1);
+    float dv = 1.0f / (N - 1);
+
+    grid->vertices.resize(verCount);
+    for (UINT i = 0; i < N; ++i) {
+        float y = h / 2 - i * dy;
+        for (UINT j = 0; j < M; ++j) {
+            float x = -w / 2 + j * dx;
+            grid->vertices[i * M + j] = {
+                { x, y, 0.0f },
+                { 0.0f, 0.0f, 1.0f },
+                { j * du, i * dv } };
+        }
+    }
+
+    grid->indices.resize(triCount * 3);
+    UINT k = 0; // Index of each square.
+    for (UINT i = 0; i < N - 1; ++i) {
+        for (UINT j = 0; j < M - 1; ++j) {
+            grid->indices[k] = i * M + j + 1;
+            grid->indices[k + 1] =  i * M + j;
+            grid->indices[k + 2] = (i + 1) * M + j;
+            grid->indices[k + 3] = i * M + j + 1;
+            grid->indices[k + 4] = (i + 1) * M + j;
+            grid->indices[k + 5] = (i + 1) * M + j + 1;
+            k += 6; // Next square.
+        }
+    }
+
+    grid->locationInfo.indexCount = grid->indices.size();
+    grid->locationInfo.startIndexLocation = 0;
+    grid->locationInfo.baseVertexLocation = 0;
+}
+
+void disturbGridToHill(float hsize, float density, ObjectGeometry* hill) {
+    for (auto& ver : hill->vertices) {
+        ver.pos.z = calcHillVertexHeight(ver.pos.x, ver.pos.y, hsize, density);
+    }
+}
+
+float calcHillVertexHeight(float x, float y, float hsize, float density) {
+    return hsize * (y * sinf(density* x) + x * cosf(density * y));
+}
+
+void generateCircle2D(XMFLOAT3 center, XMFLOAT3 normal, float radius, UINT n, ObjectGeometry* circle) {
+    auto nor = XMLoadFloat3(&normal);
+    auto xaxis = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+    XMVECTOR firstCross, secondCross;
+    firstCross = XMVector3Cross(nor, xaxis);
+    if (XMVectorGetX(XMVector3LengthSq(firstCross)) < 0.0001f) {
+        // Nearly zero vector, so take X-axis as normal.
+        // Since we only draw a 2D circle the 0 degree and 180 degree are treated the same.
+        firstCross = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+        secondCross = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+    }
+    else {
+        firstCross = XMVector3Normalize(firstCross);
+        secondCross = XMVector3Normalize(XMVector3Cross(firstCross, nor));
+    }
+
+    float theta = XM_2PI / n;
+    circle->vertices.resize(n + 1);
+    circle->indices.resize(n + 1);
+    for (UINT i = 0; i < n; ++i) {
+        auto r = firstCross * cosf(theta * i) + secondCross * sinf(theta * i);
+        XMStoreFloat3(&circle->vertices[i].pos, r * radius + XMLoadFloat3(&center));
+        XMStoreFloat3(&circle->vertices[i].normal, r);
+        circle->indices[i] = i;
+    }
+    // Append first vertex at last manually to make a closed loop.
+    circle->vertices[n] = circle->vertices[0];
+    circle->indices[n] = n;
+
+    circle->locationInfo.indexCount = circle->indices.size();
+    circle->locationInfo.startIndexLocation = 0;
+    circle->locationInfo.baseVertexLocation = 0;
 }

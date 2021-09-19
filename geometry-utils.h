@@ -25,9 +25,9 @@ void rotateObjectGeometry(float rx, float ry, float rz, ObjectGeometry* geo);
 
 void scaleObjectGeometry(float sx, float sy, float sz, ObjectGeometry* geo);
 
-void applyObjectGeometryTransformation(XMMATRIX trans, ObjectGeometry* geo);
+void XM_CALLCONV applyObjectGeometryTransform(FXMMATRIX trans, ObjectGeometry* geo);
 
-XMVECTOR calcTriangleClockwiseNormal(FXMVECTOR v0, FXMVECTOR v1, FXMVECTOR v2);
+XMVECTOR XM_CALLCONV calcTriangleClockwiseNormal(FXMVECTOR v0, FXMVECTOR v1, FXMVECTOR v2);
 
 // After the vertex positions and indices are decided, the vertex normals can be updated through this func.
 // Note this func simply takes every triangle connected with the target vertex into account and calculates
@@ -39,6 +39,8 @@ void updateVertexNormals(ObjectGeometry* geo);
 
 // Note this func only changes the vertices and indices data and other data may be dirty.
 void subdivide(ObjectGeometry* geo);
+
+void appendVerticesToObjectGeometry(std::vector<Vertex> ver, std::vector<UINT16> idx, ObjectGeometry* objGeo);
 
 void generateCube(XMFLOAT3 xyz, ObjectGeometry* cube);
 
@@ -53,3 +55,12 @@ void generateSphere(float r, UINT sliceCount, UINT stackCount, ObjectGeometry* s
 void generateSphereCap(bool isTop, float r, UINT sliceCount, UINT ringCount, ObjectGeometry* sphere);
 
 void generateGeoSphere(float r, int subdivisionLevel, ObjectGeometry* gs);
+
+void generateGrid(float w, float h, UINT m, UINT n, ObjectGeometry* grid);
+
+// We simply generate a grid first and then change the vertices' height to get a hill.
+void disturbGridToHill(float hsize, float density, ObjectGeometry* hill);
+
+float calcHillVertexHeight(float x, float y, float hsize, float density);
+
+void generateCircle2D(XMFLOAT3 center, XMFLOAT3 normal, float radius, UINT n, ObjectGeometry* circle);

@@ -6,6 +6,10 @@
 ** yiyaowen (c) 2021 All Rights Reserved.
 */
 
+// This file is very similar to rs.hlsl (default shader). An important difference
+// is that a geometry shader is configured to achieve some interesting effects.
+// Note the definitions of some structs are changed to serve the geometry shader.
+
 #include "light-utils.hlsl"
 
 cbuffer cbPerObject : register(b0)
@@ -21,6 +25,7 @@ cbuffer cbGlobalProc : register(b1)
 	float4x4 gProj;
 
 	float3 gEyePosW;
+	float gElapsedSecs;
 
 	float4 gAmbientLight;
 	Light gLights[MAX_LIGHTS];
@@ -56,9 +61,20 @@ struct VertexIn
 	float3 posL  : POSITION;
 	float3 normalL : NORMAL;
 	float2 uv : TEXCOORD;
+	float2 size : SIZE;
 };
 
+// VertexOut is exactly the same with VertexIn. The works originally done by VS
+// are moved into GS. (transform vertices from local-coordinate to world-coordinate etc.)
 struct VertexOut
+{
+	float3 posL  : POSITION;
+	float3 normalL : NORMAL;
+	float2 uv : TEXCOORD;
+	float2 size : SIZE;
+};
+
+struct GeoOut
 {
 	float4 posH  : SV_POSITION;
 	float3 posW : POSITION;
@@ -70,17 +86,49 @@ VertexOut VS(VertexIn vin)
 {
 	VertexOut vout;
 
-	float4 posW = mul(mul(float4(vin.posL, 1.0f), gWorld), gReflectTrans);
-	vout.posH = mul(mul(posW, gView), gProj);
-	vout.posW = posW.xyz;
-	vout.normalW = mul(mul(vin.normalL, (float3x3)gInvTrWorld), (float3x3)gInvTrReflectTrans);
-	float4 uv = mul(float4(vin.uv, 0.0f, 1.0f), gTexTrans);
-	vout.uv = mul(uv, gMatTrans).xy;
+	vout.posL = vin.posL;
+	vout.normalL = vin.normalL;
+	vout.uv = vin.uv;
+	vout.size = vin.size;
 
 	return vout;
 }
 
-float4 PS(VertexOut pin) : SV_Target
+// To realize a simple explosion animation, we move each triangle along its normal over time.
+[maxvertexcount(3)]
+void GS(triangle VertexOut gin[3], uint primID : SV_PrimitiveID, inout TriangleStream<GeoOut> triStream)
+{
+	GeoOut gout[3];
+
+	// Firstly, move each triangle along its normal over time.
+	[unroll]
+	for (int i = 0; i < 3; ++i)
+	{
+		// We simply give it a hard coded velocity factor here.
+		gin[i].posL = gin[i].posL + gin[i].normalL * gElapsedSecs * (primID % 3 + 1) * 7.0f;
+	}
+
+	// Secondly, finish the work in VS originally.
+	[unroll]
+	for (int j = 0; j < 3; ++j)
+	{
+		float4 posW = mul(mul(float4(gin[j].posL, 1.0f), gWorld), gReflectTrans);
+		gout[j].posH = mul(mul(posW, gView), gProj);
+		gout[j].posW = posW.xyz;
+		gout[j].normalW = mul(mul(gin[j].normalL, (float3x3)gInvTrWorld), (float3x3)gInvTrReflectTrans);
+		float4 uv = mul(float4(gin[j].uv, 0.0f, 1.0f), gTexTrans);
+		gout[j].uv = mul(uv, gMatTrans).xy;
+	}
+
+	[unroll]
+	for (int k = 0; k < 3; ++k)
+	{
+		triStream.Append(gout[k]);
+	}
+	triStream.RestartStrip();
+}
+
+float4 PS(GeoOut pin) : SV_Target
 {
 	pin.normalW = normalize(pin.normalW);
 	float3 eyeVecW = gEyePosW - pin.posW;

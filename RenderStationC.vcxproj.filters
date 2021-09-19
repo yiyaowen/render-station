@@ -112,7 +112,13 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="shaders\rs.hlsl" />
+    <None Include="shaders\default.hlsl" />
     <None Include="shaders\light-utils.hlsl" />
+    <None Include="shaders\subdivision-gs.hlsl" />
+    <None Include="shaders\billboard-gs.hlsl" />
+    <None Include="shaders\cylinder-generator-gs.hlsl" />
+    <None Include="shaders\explosion-gs.hlsl" />
+    <None Include="shaders\ver-normal-visible-gs.hlsl" />
+    <None Include="shaders\tri-normal-visible-gs.hlsl" />
   </ItemGroup>
 </Project>

@@ -8,6 +8,7 @@
 
 #include "debugger.h"
 #include "frame-async-utils.h"
+#include "render-item-utils.h"
 
 void initEmptyFrameResource(D3DCore* pCore, FrameResource* pResource) {
     checkHR(pCore->device->CreateCommandAllocator(
@@ -31,35 +32,50 @@ void initFResourceMatConstBuff(D3DCore* pCore, UINT matBuffCount, FrameResource*
 }
 
 void initEmptyRenderItem(RenderItem* pRitem) {
-    pRitem->objConstBuffIdx = 0;
-
-    ObjConsts constData;
-    constData.worldTrans = makeIdentityFloat4x4();
-    constData.invTrWorldTrans = makeIdentityFloat4x4();
-    pRitem->constData = constData;
+    // TODO: This func is Reserved for more complicated render item implementation.
 }
 
-void drawRenderItems(D3DCore* pCore, RenderItem** ppRitem, UINT ritemCount) {
+void drawRenderItems(D3DCore* pCore, RenderItem** ppRitem, UINT ritemCount, std::vector<UINT> seatIdxOffsetList) {
     for (UINT i = 0; i < ritemCount; ++i) {
+        UINT seatIdxOffset = seatIdxOffsetList[i];
+
         pCore->cmdList->IASetVertexBuffers(0, 1, &ppRitem[i]->mesh->vertexBuffView);
         pCore->cmdList->IASetIndexBuffer(&ppRitem[i]->mesh->indexBuffView);
         pCore->cmdList->IASetPrimitiveTopology(ppRitem[i]->topologyType);
 
-        auto constBuffAddr = pCore->currFrameResource->objConstBuffGPU->GetGPUVirtualAddress();
-        constBuffAddr += ppRitem[i]->objConstBuffIdx * calcConstBuffSize(sizeof(ObjConsts));
-        pCore->cmdList->SetGraphicsRootConstantBufferView(0, constBuffAddr);
+        // Bind Material Constants Buffer.
+        auto materialConstBuffAddr = pCore->currFrameResource->matConstBuffGPU->GetGPUVirtualAddress();
+        materialConstBuffAddr += ppRitem[i]->materials[seatIdxOffset]->matConstBuffIdx * calcConstBuffSize(sizeof(MatConsts));
+        pCore->cmdList->SetGraphicsRootConstantBufferView(2, materialConstBuffAddr);
 
-        constBuffAddr = pCore->currFrameResource->matConstBuffGPU->GetGPUVirtualAddress();
-        constBuffAddr += ppRitem[i]->material->matConstBuffIdx * calcConstBuffSize(sizeof(MatConsts));
-        pCore->cmdList->SetGraphicsRootConstantBufferView(2, constBuffAddr);
-
+        // Bind Texture2D.
         CD3DX12_GPU_DESCRIPTOR_HANDLE texHandle(pCore->srvDescHeap->GetGPUDescriptorHandleForHeapStart());
-        texHandle.Offset(ppRitem[i]->material->texSrvHeapIdx, pCore->cbvSrvUavDescSize);
+        texHandle.Offset(ppRitem[i]->materials[seatIdxOffset]->texSrvHeapIdx, pCore->cbvSrvUavDescSize);
         pCore->cmdList->SetGraphicsRootDescriptorTable(3, texHandle);
+
+        // Bind Object Constants Buffer.
+        auto objectConstBuffAddr = pCore->currFrameResource->objConstBuffGPU->GetGPUVirtualAddress();
+        UINT currSeatIdx = ppRitem[i]->objConstBuffStartIdx + seatIdxOffset;
+        auto currSeatAddr = objectConstBuffAddr + currSeatIdx * calcConstBuffSize(sizeof(ObjConsts));
+        pCore->cmdList->SetGraphicsRootConstantBufferView(0, currSeatAddr);
 
         Vsubmesh ritemMain = ppRitem[i]->mesh->objects["main"];
         pCore->cmdList->DrawIndexedInstanced(ritemMain.indexCount, 1, ritemMain.startIndexLocation, ritemMain.baseVertexLocation, 0);
     }
+}
+
+void drawRenderItemsInLayer(D3DCore* pCore, std::string layerName, RenderItem** ppRitem, UINT ritemCount) {
+    std::vector<UINT> seatIdxOffsetList;
+    for (UINT i = 0; i < ritemCount; ++i) {
+        seatIdxOffsetList.push_back(ppRitem[i]->boundLayerSeatOffsetTable[layerName]);
+    }
+    drawRenderItems(pCore, ppRitem, ritemCount, seatIdxOffsetList);
+}
+
+void drawRitemLayerWithName(D3DCore* pCore, std::string name) {
+    pCore->cmdList->SetPipelineState(pCore->PSOs[name].Get());
+    auto ritemLayer = findRitemLayerWithName(name, pCore->ritemLayers);
+    drawRenderItemsInLayer(pCore, name, ritemLayer.data(), ritemLayer.size());
 }
 
 UINT calcConstBuffSize(UINT byteSize)
@@ -90,4 +106,34 @@ void createConstBuffPair(D3DCore* pCore, size_t elemSize, UINT elemCount,
         nullptr,
         IID_PPV_ARGS(ppBuffGPU)));
     checkHR((*ppBuffGPU)->Map(0, nullptr, reinterpret_cast<void**>(ppBuffCPU)));
+}
+
+void drawAllRitemsFormatted(D3DCore* pCore, const std::string& psoName, D3D_PRIMITIVE_TOPOLOGY primTopology, Material* mat) {
+    pCore->cmdList->SetPipelineState(pCore->PSOs[psoName].Get());
+    for (auto ritem : pCore->allRitems) {
+        UINT seatIdxOffset = 0;
+
+        pCore->cmdList->IASetVertexBuffers(0, 1, &ritem->mesh->vertexBuffView);
+        pCore->cmdList->IASetIndexBuffer(&ritem->mesh->indexBuffView);
+        pCore->cmdList->IASetPrimitiveTopology(primTopology);
+
+        // Bind Material Constants Buffer.
+        auto materialConstBuffAddr = pCore->currFrameResource->matConstBuffGPU->GetGPUVirtualAddress();
+        materialConstBuffAddr += mat->matConstBuffIdx * calcConstBuffSize(sizeof(MatConsts));
+        pCore->cmdList->SetGraphicsRootConstantBufferView(2, materialConstBuffAddr);
+
+        // Bind Texture2D.
+        CD3DX12_GPU_DESCRIPTOR_HANDLE texHandle(pCore->srvDescHeap->GetGPUDescriptorHandleForHeapStart());
+        texHandle.Offset(mat->texSrvHeapIdx, pCore->cbvSrvUavDescSize);
+        pCore->cmdList->SetGraphicsRootDescriptorTable(3, texHandle);
+
+        // Bind Object Constants Buffer.
+        auto objectConstBuffAddr = pCore->currFrameResource->objConstBuffGPU->GetGPUVirtualAddress();
+        UINT currSeatIdx = ritem->objConstBuffStartIdx + seatIdxOffset;
+        auto currSeatAddr = objectConstBuffAddr + currSeatIdx * calcConstBuffSize(sizeof(ObjConsts));
+        pCore->cmdList->SetGraphicsRootConstantBufferView(0, currSeatAddr);
+
+        Vsubmesh ritemMain = ritem->mesh->objects["main"];
+        pCore->cmdList->DrawIndexedInstanced(ritemMain.indexCount, 1, ritemMain.startIndexLocation, ritemMain.baseVertexLocation, 0);
+    }
 }

@@ -6,6 +6,8 @@
 ** yiyaowen (c) 2021 All Rights Reserved.
 */
 
+// This is the default shader for render station program. ('rs' means 'render station')
+
 #include "light-utils.hlsl"
 
 cbuffer cbPerObject : register(b0)
@@ -21,6 +23,7 @@ cbuffer cbGlobalProc : register(b1)
 	float4x4 gProj;
 
 	float3 gEyePosW;
+	float gElapsedSecs;
 
 	float4 gAmbientLight;
 	Light gLights[MAX_LIGHTS];
@@ -56,6 +59,7 @@ struct VertexIn
 	float3 posL  : POSITION;
 	float3 normalL : NORMAL;
 	float2 uv : TEXCOORD;
+	float2 size : SIZE;
 };
 
 struct VertexOut
