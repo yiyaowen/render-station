@@ -15,110 +15,135 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
+    <None Include="shaders\basic\default.hlsl" />
+    <None Include="shaders\basic\light-utils.hlsl" />
+    <None Include="shaders\effects\subdivision-gs.hlsl" />
+    <None Include="shaders\effects\billboard-gs.hlsl" />
+    <None Include="shaders\test-demos\cylinder-generator-gs.hlsl" />
+    <None Include="shaders\effects\explosion-gs.hlsl" />
+    <None Include="shaders\others\ver-normal-visible-gs.hlsl" />
+    <None Include="shaders\others\tri-normal-visible-gs.hlsl" />
+    <None Include="shaders\test-demos\vec-add-demo-cs.hlsl" />
+    <None Include="shaders\postprocessing\gaussian-blur.hlsl" />
+    <None Include="shaders\basic\cartoon.hlsl" />
+    <None Include="shaders\effects\billboard-cartoon-gs.hlsl" />
+    <None Include="shaders\test-demos\vec-length-demo-cs.hlsl" />
+    <None Include="shaders\postprocessing\bilateral-blur-sdf.hlsl" />
+    <None Include="shaders\postprocessing\bilateral-blur.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="cppsrc\widgets\camera.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="d3dcore.cpp">
+    <ClCompile Include="cppsrc\d3dcore\d3dcore.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="devfunc.cpp">
+    <ClCompile Include="cppsrc\toolbox\DDSTextureLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="shader.cpp">
+    <ClCompile Include="cppsrc\example\devfunc.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="vmesh-utils.cpp">
+    <ClCompile Include="cppsrc\utils\frame-async-utils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="math-utils.cpp">
+    <ClCompile Include="cppsrc\utils\geometry-utils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="camera.cpp">
+    <ClCompile Include="cppsrc\example\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="geometry-utils.cpp">
+    <ClCompile Include="cppsrc\utils\math-utils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="frame-async-utils.cpp">
+    <ClCompile Include="cppsrc\utils\render-item-utils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="render-item-utils.cpp">
+    <ClCompile Include="cppsrc\graphics\shader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="timer-utils.cpp">
+    <ClCompile Include="cppsrc\utils\timer-utils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="DDSTextureLoader.cpp">
+    <ClCompile Include="cppsrc\utils\vmesh-utils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="cppsrc\postprocessing\gaussian-blur.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="cppsrc\postprocessing\basic-process.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="cppsrc\postprocessing\bilateral-blur.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="debugger.h">
+    <ClInclude Include="cppsrc\widgets\camera.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="d3dcore.h">
+    <ClInclude Include="cppsrc\d3dcore\d3dcore.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="d3dx12.h">
+    <ClInclude Include="cppsrc\toolbox\d3dx12.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="vmesh.h">
+    <ClInclude Include="cppsrc\toolbox\DDSTextureLoader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="shader.h">
+    <ClInclude Include="cppsrc\utils\debugger.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="vmesh-utils.h">
+    <ClInclude Include="cppsrc\example\devfunc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="math-utils.h">
+    <ClInclude Include="cppsrc\d3dcore\frame-async.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="devfunc.h">
+    <ClInclude Include="cppsrc\utils\frame-async-utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="camera.h">
+    <ClInclude Include="cppsrc\utils\geometry-utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="geometry-utils.h">
+    <ClInclude Include="cppsrc\graphics\light.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="frame-async.h">
+    <ClInclude Include="cppsrc\graphics\material.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="frame-async-utils.h">
+    <ClInclude Include="cppsrc\utils\math-utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="render-item-utils.h">
+    <ClInclude Include="cppsrc\utils\render-item-utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="material.h">
+    <ClInclude Include="cppsrc\graphics\shader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="light.h">
+    <ClInclude Include="cppsrc\graphics\texture.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="timer.h">
+    <ClInclude Include="cppsrc\widgets\timer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="timer-utils.h">
+    <ClInclude Include="cppsrc\utils\timer-utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="texture.h">
+    <ClInclude Include="cppsrc\graphics\vmesh.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="DDSTextureLoader.h">
+    <ClInclude Include="cppsrc\utils\vmesh-utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="shaders\default.hlsl" />
-    <None Include="shaders\light-utils.hlsl" />
-    <None Include="shaders\subdivision-gs.hlsl" />
-    <None Include="shaders\billboard-gs.hlsl" />
-    <None Include="shaders\cylinder-generator-gs.hlsl" />
-    <None Include="shaders\explosion-gs.hlsl" />
-    <None Include="shaders\ver-normal-visible-gs.hlsl" />
-    <None Include="shaders\tri-normal-visible-gs.hlsl" />
+    <ClInclude Include="cppsrc\postprocessing\gaussian-blur.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cppsrc\postprocessing\basic-process.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cppsrc\postprocessing\bilateral-blur.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
