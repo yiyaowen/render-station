@@ -24,12 +24,3 @@ void updateRitemRangeObjConstBuffIdx(RenderItem** ppRitem, size_t ritemCount) {
         ppRitem[i]->objConstBuffIdx = i;
     }
 }
-
-std::vector<RenderItem*>& findRitemLayerWithName(const std::string& name,
-    std::vector<std::pair<std::string, std::vector<RenderItem*>>>& layers)
-{
-    return std::find_if(layers.begin(), layers.end(),
-        [&](const std::pair<std::string, std::vector<RenderItem*>>& p) {
-            return name == p.first;
-        })->second;
-}

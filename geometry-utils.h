@@ -25,9 +25,9 @@ void rotateObjectGeometry(float rx, float ry, float rz, ObjectGeometry* geo);
 
 void scaleObjectGeometry(float sx, float sy, float sz, ObjectGeometry* geo);
 
-void XM_CALLCONV applyObjectGeometryTransform(FXMMATRIX trans, ObjectGeometry* geo);
+void applyObjectGeometryTransformation(XMMATRIX trans, ObjectGeometry* geo);
 
-XMVECTOR XM_CALLCONV calcTriangleClockwiseNormal(FXMVECTOR v0, FXMVECTOR v1, FXMVECTOR v2);
+XMVECTOR calcTriangleClockwiseNormal(FXMVECTOR v0, FXMVECTOR v1, FXMVECTOR v2);
 
 // After the vertex positions and indices are decided, the vertex normals can be updated through this func.
 // Note this func simply takes every triangle connected with the target vertex into account and calculates

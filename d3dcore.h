@@ -112,7 +112,10 @@ struct D3DCore {
 
     std::unordered_map<std::string, std::unique_ptr<RenderItem>> ritems; // ritems: render items
     std::vector<RenderItem*> allRitems;
-    std::vector<std::pair<std::string, std::vector<RenderItem*>>> ritemLayers;
+    std::vector<RenderItem*> solidModeRitems;
+    std::vector<RenderItem*> wireframeModeRitems;
+    std::vector<RenderItem*> alphaTestModeRitems;
+    std::vector<RenderItem*> alphaModeRitems;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     // It is a great idea to introduce some interesting techniques.
@@ -145,13 +148,12 @@ void createInputLayout(D3DCore* pCore);
 void createPSOs(D3DCore* pCore);
 
 void createBasicMaterials(D3DCore* pCore);
-// Due to root signature includes a descriptor table of textures, and materials depend on initialized textures,
+// Due to root signature includes a descriptor table of textures and materials depend on initialized textures,
 // all texture initialization funcs should be called before the root signature and the materials are created.
 void loadBasicTextures(D3DCore* pCore);
 void createDescHeaps(D3DCore* pCore);
 std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> generateStaticSamplers();
 
-void createRenderItemLayers(D3DCore* pCore);
 void createRenderItems(D3DCore* pCore);
 
 // Note frame resource depends on initialized render items, materials.

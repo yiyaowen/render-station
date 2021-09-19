@@ -8,7 +8,6 @@
 
 #include "debugger.h"
 #include "frame-async-utils.h"
-#include "render-item-utils.h"
 
 void initEmptyFrameResource(D3DCore* pCore, FrameResource* pResource) {
     checkHR(pCore->device->CreateCommandAllocator(
@@ -61,12 +60,6 @@ void drawRenderItems(D3DCore* pCore, RenderItem** ppRitem, UINT ritemCount) {
         Vsubmesh ritemMain = ppRitem[i]->mesh->objects["main"];
         pCore->cmdList->DrawIndexedInstanced(ritemMain.indexCount, 1, ritemMain.startIndexLocation, ritemMain.baseVertexLocation, 0);
     }
-}
-
-void drawRitemLayerWithName(D3DCore* pCore, std::string name) {
-    pCore->cmdList->SetPipelineState(pCore->PSOs[name].Get());
-    auto ritemLayer = findRitemLayerWithName(name, pCore->ritemLayers);
-    drawRenderItems(pCore, ritemLayer.data(), ritemLayer.size());
 }
 
 UINT calcConstBuffSize(UINT byteSize)

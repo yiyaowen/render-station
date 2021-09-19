@@ -11,20 +11,20 @@
 
 void translateObjectGeometry(float dx, float dy, float dz, ObjectGeometry* geo) {
     XMMATRIX translationMat = XMMatrixTranslation(dx, dy, dz);
-    applyObjectGeometryTransform(translationMat, geo);
+    applyObjectGeometryTransformation(translationMat, geo);
 }
 
 void rotateObjectGeometry(float rx, float ry, float rz, ObjectGeometry* geo) {
     XMMATRIX rotationMat = XMMatrixRotationRollPitchYaw(rx, ry, rz);
-    applyObjectGeometryTransform(rotationMat, geo);
+    applyObjectGeometryTransformation(rotationMat, geo);
 }
 
 void scaleObjectGeometry(float sx, float sy, float sz, ObjectGeometry* geo) {
     XMMATRIX scalingMat = XMMatrixScaling(sx, sy, sz);
-    applyObjectGeometryTransform(scalingMat, geo);
+    applyObjectGeometryTransformation(scalingMat, geo);
 }
 
-void XM_CALLCONV applyObjectGeometryTransform(FXMMATRIX trans, ObjectGeometry* geo) {
+void applyObjectGeometryTransformation(XMMATRIX trans, ObjectGeometry* geo) {
     XMMATRIX invTrTrans = XMMatrixTranspose(XMMatrixInverse(&XMMatrixDeterminant(trans), trans));
     for (auto& ver : geo->vertices) {
         XMVECTOR pos = XMLoadFloat3(&ver.pos);
@@ -36,7 +36,7 @@ void XM_CALLCONV applyObjectGeometryTransform(FXMMATRIX trans, ObjectGeometry* g
     }
 }
 
-XMVECTOR XM_CALLCONV calcTriangleClockwiseNormal(FXMVECTOR v0, FXMVECTOR v1, FXMVECTOR v2) {
+XMVECTOR calcTriangleClockwiseNormal(FXMVECTOR v0, FXMVECTOR v1, FXMVECTOR v2) {
     XMVECTOR x = v1 - v0;
     XMVECTOR y = v2 - v0;
     return XMVector3Normalize(XMVector3Cross(x, y));

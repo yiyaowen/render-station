@@ -28,9 +28,6 @@ cbuffer cbGlobalProc : register(b1)
 	float4 gFogColor;
 	float gFogFallOffStart;
 	float gFogFallOffEnd;
-
-	float4x4 gReflectTrans;
-	float4x4 gInvTrReflectTrans;
 }
 
 cbuffer cbMaterial : register(b2)
@@ -70,10 +67,10 @@ VertexOut VS(VertexIn vin)
 {
 	VertexOut vout;
 
-	float4 posW = mul(mul(float4(vin.posL, 1.0f), gWorld), gReflectTrans);
+	float4 posW = mul(float4(vin.posL, 1.0f), gWorld);
 	vout.posH = mul(mul(posW, gView), gProj);
 	vout.posW = posW.xyz;
-	vout.normalW = mul(mul(vin.normalL, (float3x3)gInvTrWorld), (float3x3)gInvTrReflectTrans);
+	vout.normalW = mul(vin.normalL, (float3x3)gInvTrWorld);
 	float4 uv = mul(float4(vin.uv, 0.0f, 1.0f), gTexTrans);
 	vout.uv = mul(uv, gMatTrans).xy;
 
@@ -82,27 +79,32 @@ VertexOut VS(VertexIn vin)
 
 float4 PS(VertexOut pin) : SV_Target
 {
-	pin.normalW = normalize(pin.normalW);
-	float3 eyeVecW = gEyePosW - pin.posW;
-	float distToEye = length(eyeVecW);
-	eyeVecW /= distToEye;
-	float4 diffuseAlbedo = gDiffuseAlbedo * gDiffuseMap.Sample(gsamAnisotropicWrap, pin.uv);
+	// The transparent pixels are cliped without any processing,
+	// so it is not taken into account in depth complexity calculation.
+	clip(gDiffuseMap.Sample(gsamAnisotropicWrap, pin.uv).a - 0.1f);
+	// To show the depth complexity, a same faint light color is return for every pixel.
+	return float4(0.2f, 0.2f, 0.2f, 1.0f);
+	//pin.normalW = normalize(pin.normalW);
+	//float3 eyeVecW = gEyePosW - pin.posW;
+	//float distToEye = length(eyeVecW);
+	//eyeVecW /= distToEye;
+	//float4 diffuseAlbedo = gDiffuseAlbedo * gDiffuseMap.Sample(gsamAnisotropicWrap, pin.uv);
 
-	clip(diffuseAlbedo.a - 0.1f);
+	//clip(diffuseAlbedo.a - 0.1f);
 
-	float4 ambient = gAmbientLight * diffuseAlbedo;
+	//float4 ambient = gAmbientLight * diffuseAlbedo;
 
-	const float shininess = 1.0f - gRoughness;
-	Material mat = { diffuseAlbedo, gFresnelR0, shininess };
-	float4 litColor = { calcAllLights(gLights, pin.posW, pin.normalW, eyeVecW, mat), 0.0f };
-	litColor += ambient;
+	//const float shininess = 1.0f - gRoughness;
+	//Material mat = { diffuseAlbedo, gFresnelR0, shininess };
+	//float4 litColor = { calcAllLights(gLights, pin.posW, pin.normalW, eyeVecW, mat), 0.0f };
+	//litColor += ambient;
 
-	// Simulate the effect of fog.
-	float fogAmount = saturate((distToEye - gFogFallOffStart) / (gFogFallOffEnd - gFogFallOffStart));
-	litColor = lerp(litColor, gFogColor, fogAmount);
+	//// Simulate the effect of fog.
+	//float fogAmount = saturate((distToEye - gFogFallOffStart) / (gFogFallOffEnd - gFogFallOffStart));
+	//litColor = lerp(litColor, gFogColor, fogAmount);
 
-	// It is a common means to get the alpha value from diffuse albedo.
-	litColor.a = diffuseAlbedo.a;
+	//// It is a common means to get the alpha value from diffuse albedo.
+	//litColor.a = diffuseAlbedo.a;
 
-	return litColor;
+	//return litColor;
 }

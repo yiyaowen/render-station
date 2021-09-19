@@ -78,7 +78,6 @@ void createD3DCore(HWND hWnd, D3DCore** ppCore) {
 
     createBasicMaterials(pCore);
 
-    createRenderItemLayers(pCore);
     createRenderItems(pCore);
 
     createFrameResources(pCore);
@@ -261,59 +260,19 @@ void createPSOs(D3DCore* pCore) {
 
     // Alpha
     D3D12_GRAPHICS_PIPELINE_STATE_DESC alphaPsoDesc = solidPsoDesc;
-    D3D12_RENDER_TARGET_BLEND_DESC alphaRTBD = alphaPsoDesc.BlendState.RenderTarget[0];
-    alphaRTBD.BlendEnable = true;
-    alphaRTBD.SrcBlend = D3D12_BLEND_SRC_ALPHA;
-    alphaRTBD.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-    alphaRTBD.BlendOp = D3D12_BLEND_OP_ADD;
-    alphaPsoDesc.BlendState.RenderTarget[0] = alphaRTBD;
+    // Disable depth test to take every vertex into account.
+    alphaPsoDesc.DepthStencilState.DepthEnable = false;
+    // Take both front and back pixels into account.
+    alphaPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+    D3D12_RENDER_TARGET_BLEND_DESC rtbd = alphaPsoDesc.BlendState.RenderTarget[0];
+    rtbd.BlendEnable = true;
+    // Make sure C = Csrc + Cdst.
+    rtbd.SrcBlend = D3D12_BLEND_ONE;
+    rtbd.DestBlend = D3D12_BLEND_ONE;
+    rtbd.BlendOp = D3D12_BLEND_OP_ADD;
+    alphaPsoDesc.BlendState.RenderTarget[0] = rtbd;
+
     checkHR(pCore->device->CreateGraphicsPipelineState(&alphaPsoDesc, IID_PPV_ARGS(&pCore->PSOs["alpha"])));
-
-    // Stencil Mark:
-    // Keep the render target buffer and depth buffer intact and always mark the stencil buffer (stencil test will always passes).
-    // (Note: This setting also takes into account the depth test. When depth test fails the stencil test will not pass.)
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC stencilMarkPsoDesc = solidPsoDesc;
-    D3D12_RENDER_TARGET_BLEND_DESC stencilMarkRTBD = stencilMarkPsoDesc.BlendState.RenderTarget[0];
-    alphaRTBD.RenderTargetWriteMask = 0;
-    stencilMarkPsoDesc.BlendState.RenderTarget[0] = alphaRTBD;
-    D3D12_DEPTH_STENCIL_DESC stencilMarkDSD = stencilMarkPsoDesc.DepthStencilState;
-    stencilMarkDSD.DepthEnable = true;
-    stencilMarkDSD.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
-    stencilMarkDSD.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
-    stencilMarkDSD.StencilEnable = true;
-    stencilMarkDSD.StencilReadMask = 0xff;
-    stencilMarkDSD.StencilWriteMask = 0xff;
-    stencilMarkDSD.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
-    stencilMarkDSD.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
-    stencilMarkDSD.FrontFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
-    stencilMarkDSD.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-    stencilMarkDSD.BackFace = stencilMarkDSD.FrontFace;
-    stencilMarkPsoDesc.DepthStencilState = stencilMarkDSD;
-    checkHR(pCore->device->CreateGraphicsPipelineState(&stencilMarkPsoDesc, IID_PPV_ARGS(&pCore->PSOs["stencil_mark"])));
-
-    // Stencil Reflect:
-    // Write into the render target buffer and depth buffer if and only if the stencil test value equals to reference value.
-    // (Note: This is usually used to achieve an effect of mirror reflect and so is called Stencil Reflect PSO.)
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC stencilReflectPsoDesc = solidPsoDesc;
-    D3D12_DEPTH_STENCIL_DESC stencilReflectDSD = stencilReflectPsoDesc.DepthStencilState;
-    stencilReflectDSD.DepthEnable = true;
-    stencilReflectDSD.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-    stencilReflectDSD.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
-    stencilReflectDSD.StencilEnable = true;
-    stencilReflectDSD.StencilReadMask = 0xff;
-    stencilReflectDSD.StencilWriteMask = 0xff;
-    stencilReflectDSD.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
-    stencilReflectDSD.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
-    stencilReflectDSD.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
-    stencilReflectDSD.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
-    stencilReflectDSD.BackFace = stencilReflectDSD.FrontFace;
-    stencilReflectPsoDesc.DepthStencilState = stencilReflectDSD;
-    // The reflection operation actually changes the target object's space coordinate system.
-    // For example, in DirectX the default coordinate system is LEFT-handed. After reflected,
-    // the target object jumps into a RIGHT-handed space. Thus an anticlockwise winding order
-    // should be applied here instead of the default front-clockwise winding order in DirectX.
-    stencilReflectPsoDesc.RasterizerState.FrontCounterClockwise = true;
-    checkHR(pCore->device->CreateGraphicsPipelineState(&stencilReflectPsoDesc, IID_PPV_ARGS(&pCore->PSOs["stencil_reflect"])));
 }
 
 void createBasicMaterials(D3DCore* pCore) {
@@ -379,42 +338,6 @@ void createBasicMaterials(D3DCore* pCore) {
     fence->constData.fresnelR0 = { 0.06f, 0.06f, 0.06f };
     fence->constData.roughness = 0.1f;
     pCore->materials[fence->name] = std::move(fence);
-
-    auto brick = std::make_unique<Material>();
-    brick->name = "brick";
-    brick->matConstBuffIdx = 7;
-    brick->texSrvHeapIdx = pCore->textures["brick"]->srvHeapIdx;
-    brick->constData.diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
-    brick->constData.fresnelR0 = { 0.002f, 0.002f, 0.002f };
-    brick->constData.roughness = 0.9f;
-    pCore->materials[brick->name] = std::move(brick);
-
-    auto checkboard = std::make_unique<Material>();
-    checkboard->name = "checkboard";
-    checkboard->matConstBuffIdx = 8;
-    checkboard->texSrvHeapIdx = pCore->textures["checkboard"]->srvHeapIdx;
-    checkboard->constData.diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
-    checkboard->constData.fresnelR0 = { 0.008f, 0.008f, 0.008f };
-    checkboard->constData.roughness = 0.6f;
-    pCore->materials[checkboard->name] = std::move(checkboard);
-
-    auto skull = std::make_unique<Material>();
-    skull->name = "skull";
-    skull->matConstBuffIdx = 9;
-    skull->texSrvHeapIdx = pCore->textures["default"]->srvHeapIdx;
-    skull->constData.diffuseAlbedo = { 0.8f, 0.8f, 0.8f, 1.0f };
-    skull->constData.fresnelR0 = { 0.003f, 0.003f, 0.003f };
-    skull->constData.roughness = 0.7f;
-    pCore->materials[skull->name] = std::move(skull);
-
-    auto mirror = std::make_unique<Material>();
-    mirror->name = "mirror";
-    mirror->matConstBuffIdx = 10;
-    mirror->texSrvHeapIdx = pCore->textures["default"]->srvHeapIdx;
-    mirror->constData.diffuseAlbedo = { 0.75f, 0.75f, 0.8f, 0.1f };
-    mirror->constData.fresnelR0 = { 0.5f, 0.5f, 0.5f };
-    mirror->constData.roughness = 0.0f;
-    pCore->materials[mirror->name] = std::move(mirror);
 }
 
 void loadBasicTextures(D3DCore* pCore) {
@@ -450,18 +373,6 @@ void loadBasicTextures(D3DCore* pCore) {
     checkHR(CreateDDSTextureFromFile12(pCore->device.Get(), pCore->cmdList.Get(),
         L"textures/WireFence.dds", fenceTex->resource, fenceTex->uploadHeap));
     pCore->textures[fenceTex->name] = std::move(fenceTex);
-
-    auto brickTex = std::make_unique<Texture>();
-    brickTex->name = "brick";
-    checkHR(CreateDDSTextureFromFile12(pCore->device.Get(), pCore->cmdList.Get(),
-        L"textures/bricks3.dds", brickTex->resource, brickTex->uploadHeap));
-    pCore->textures[brickTex->name] = std::move(brickTex);
-
-    auto checkboardTex = std::make_unique<Texture>();
-    checkboardTex->name = "checkboard";
-    checkHR(CreateDDSTextureFromFile12(pCore->device.Get(), pCore->cmdList.Get(),
-        L"textures/checkboard.dds", checkboardTex->resource, checkboardTex->uploadHeap));
-    pCore->textures[checkboardTex->name] = std::move(checkboardTex);
 
     checkHR(pCore->cmdList->Close());
     ID3D12CommandList* cmdLists[] = { pCore->cmdList.Get() };
@@ -537,16 +448,6 @@ std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> generateStaticSamplers() {
     return { pointWrap, pointClamp, linearWrap, linearClamp, anisotropicWrap, anisotropicClamp };
 }
 
-void createRenderItemLayers(D3DCore* pCore) {
-    // Note the layer names' order cannot be disorganized due to it decides the drawing priority.
-    // Simply put, the name in front is drawn first. For example, solid layer is the first to draw.
-    std::string ritemLayerNames[] = {
-        "solid", "wireframe", "alpha_test", "stencil_mark", "stencil_reflect", "alpha" };
-    for (auto& name : ritemLayerNames) {
-        pCore->ritemLayers.push_back({ name, std::vector<RenderItem*>() });
-    }
-}
-
 void createRenderItems(D3DCore* pCore) {
     auto xAxisGeo = std::make_unique<ObjectGeometry>();
     generateCube(XMFLOAT3(100.0f, 0.01f, 0.01f), xAxisGeo.get());
@@ -554,7 +455,7 @@ void createRenderItems(D3DCore* pCore) {
     initRitemWithGeoInfo(pCore, xAxisGeo.get(), xAxis.get());
     xAxis->material = pCore->materials["red"].get();
     pCore->ritems.insert({ "X", std::move(xAxis) });
-    findRitemLayerWithName("solid", pCore->ritemLayers).push_back(pCore->ritems["X"].get());
+    pCore->solidModeRitems.push_back(pCore->ritems["X"].get());
 
     auto yAxisGeo = std::make_unique<ObjectGeometry>();
     generateCube(XMFLOAT3(0.01f, 100.0f, 0.01f), yAxisGeo.get());
@@ -562,7 +463,7 @@ void createRenderItems(D3DCore* pCore) {
     initRitemWithGeoInfo(pCore, yAxisGeo.get(), yAxis.get());
     yAxis->material = pCore->materials["green"].get();
     pCore->ritems.insert({ "Y", std::move(yAxis) });
-    findRitemLayerWithName("solid", pCore->ritemLayers).push_back(pCore->ritems["Y"].get());
+    pCore->solidModeRitems.push_back(pCore->ritems["Y"].get());
 
     auto zAxisGeo = std::make_unique<ObjectGeometry>();
     generateCube(XMFLOAT3(0.01f, 0.01f, 100.0f), zAxisGeo.get());
@@ -570,7 +471,11 @@ void createRenderItems(D3DCore* pCore) {
     initRitemWithGeoInfo(pCore, zAxisGeo.get(), zAxis.get());
     zAxis->material = pCore->materials["blue"].get();
     pCore->ritems.insert({ "Z", std::move(zAxis) });
-    findRitemLayerWithName("solid", pCore->ritemLayers).push_back(pCore->ritems["Z"].get());
+    pCore->solidModeRitems.push_back(pCore->ritems["Z"].get());
+
+    for (auto& kv : pCore->ritems) {
+        pCore->solidModeRitems.push_back(kv.second.get());
+    }
 }
 
 void createFrameResources(D3DCore* pCore) {
@@ -578,9 +483,7 @@ void createFrameResources(D3DCore* pCore) {
         auto resource = std::make_unique<FrameResource>();
         initEmptyFrameResource(pCore, resource.get());
         initFResourceObjConstBuff(pCore, pCore->ritems.size(), resource.get());
-        // Due to we use the stencil technique to achieve an effect of plane mirror,
-        // another reflected process constant buffer is needed to draw the mirror objects.
-        initFResourceProcConstBuff(pCore, 2, resource.get());
+        initFResourceProcConstBuff(pCore, 1, resource.get());
         initFResourceMatConstBuff(pCore, pCore->materials.size(), resource.get());
         pCore->frameResources.push_back(std::move(resource));
     }

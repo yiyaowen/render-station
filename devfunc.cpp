@@ -20,69 +20,35 @@ void dev_initCoreElems(D3DCore* pCore) {
     // However, the collection can still be cleared if the first 3 axes ritems are handled carefully.
     //pCore->ritems.clear();
 
-    auto groundGeo = std::make_unique<ObjectGeometry>();
-    generateGrid(80.0f, 80.0f, 1, 1, groundGeo.get());
-    rotateObjectGeometry(-XM_PIDIV2, 0.0f, 0.0f, groundGeo.get());
-    translateObjectGeometry(0.0f, 0.0f, 40.0f, groundGeo.get());
-    auto ground = std::make_unique<RenderItem>();
-    initRitemWithGeoInfo(pCore, groundGeo.get(), ground.get());
-    ground->material = pCore->materials["checkboard"].get();
-    pCore->ritems.insert({ "ground", std::move(ground) });
-    findRitemLayerWithName("solid", pCore->ritemLayers).push_back(pCore->ritems["ground"].get());
-    findRitemLayerWithName("stencil_reflect", pCore->ritemLayers).push_back(pCore->ritems["ground"].get());
+    auto boxGeo = std::make_unique<ObjectGeometry>();
+    generateCube(XMFLOAT3(1.0f, 1.0f, 1.0f), boxGeo.get());
+    translateObjectGeometry(-4.0f, 0.0f, 0.0f, boxGeo.get());
+    auto box = std::make_unique<RenderItem>();
+    initRitemWithGeoInfo(pCore, boxGeo.get(), box.get());
+    box->material = pCore->materials["fence"].get();
+    pCore->ritems.insert({ "box", std::move(box) });
+    pCore->alphaTestModeRitems.push_back(pCore->ritems["box"].get());
 
-    auto wallGeo = std::make_unique<ObjectGeometry>();
-    generateGrid(80.0f, 40.0f, 1, 1, wallGeo.get());
-    translateObjectGeometry(0.0f, 20.0f, 0.0f, wallGeo.get());
-    auto wall = std::make_unique<RenderItem>();
-    initRitemWithGeoInfo(pCore, wallGeo.get(), wall.get());
-    wall->material = pCore->materials["brick"].get();
-    pCore->ritems.insert({ "wall", std::move(wall) });
-    // The wall object should be drawn alone due to it will affect the mirror objects' rendering.
-    //findRitemLayerWithName("solid", pCore->ritemLayers).push_back(pCore->ritems["wall"].get());
+    auto hillGeo = std::make_unique<ObjectGeometry>();
+    generateGrid(200.0f, 200.0f, 100, 100, hillGeo.get());
+    disturbGridToHill(0.2f, 0.2f, hillGeo.get());
+    rotateObjectGeometry(-XM_PIDIV2, 0.0f, 0.0f, hillGeo.get());
+    auto hill = std::make_unique<RenderItem>();
+    initRitemWithGeoInfo(pCore, hillGeo.get(), hill.get());
+    hill->material = pCore->materials["grass"].get();
+    pCore->ritems.insert({ "hill", std::move(hill) });
+    pCore->solidModeRitems.push_back(pCore->ritems["hill"].get());
 
-    auto skullGeo = std::make_unique<ObjectGeometry>();
-    std::ifstream fin("models/skull.txt");
-    std::string skull_ignore;
-    UINT skullVerCount, skullTriCount;
-    fin >> skull_ignore >> skullVerCount;
-    fin >> skull_ignore >> skullTriCount;
-    skullGeo->vertices.resize(skullVerCount);
-    skullGeo->indices.resize(skullTriCount * 3);
-    fin >> skull_ignore >> skull_ignore >> skull_ignore >> skull_ignore;
-    for (UINT i = 0; i < skullVerCount; ++i) {
-        Vertex& ver = skullGeo->vertices[i];
-        fin >> ver.pos.x >> ver.pos.y >> ver.pos.z;
-        fin >> ver.normal.x >> ver.normal.y >> ver.normal.z;
-    }
-    fin >> skull_ignore >> skull_ignore >> skull_ignore;
-    for (UINT i = 0; i < skullTriCount; ++i) {
-        fin >> skullGeo->indices[i * 3];
-        fin >> skullGeo->indices[i * 3 + 1];
-        fin >> skullGeo->indices[i * 3 + 2];
-    }
-    skullGeo->locationInfo.indexCount = skullGeo->indices.size();
-    skullGeo->locationInfo.startIndexLocation = 0;
-    skullGeo->locationInfo.baseVertexLocation = 0;
-    rotateObjectGeometry(0.0f, 0.6f * XM_PI, 0.0f, skullGeo.get());
-    scaleObjectGeometry(0.4f, 0.4f, 0.4f, skullGeo.get());
-    translateObjectGeometry(0.0f, 0.0f, 4.0f, skullGeo.get());
-    auto skull = std::make_unique<RenderItem>();
-    initRitemWithGeoInfo(pCore, skullGeo.get(), skull.get());
-    skull->material = pCore->materials["skull"].get();
-    pCore->ritems.insert({ "skull", std::move(skull) });
-    findRitemLayerWithName("solid", pCore->ritemLayers).push_back(pCore->ritems["skull"].get());
-    findRitemLayerWithName("stencil_reflect", pCore->ritemLayers).push_back(pCore->ritems["skull"].get());
+    auto lakeGeo = std::make_unique<ObjectGeometry>();
+    generateGrid(200.0f, 200.0f, 100, 100, lakeGeo.get());
+    rotateObjectGeometry(-XM_PIDIV2, 0.0f, 0.0f, lakeGeo.get());
+    translateObjectGeometry(0.0f, -0.2f, 0.0f, lakeGeo.get());
+    auto lake = std::make_unique<RenderItem>();
+    initRitemWithGeoInfo(pCore, lakeGeo.get(), lake.get());
+    lake->material = pCore->materials["water"].get();
+    pCore->ritems.insert({ "lake", std::move(lake) });
+    pCore->alphaModeRitems.push_back(pCore->ritems["lake"].get());
 
-    auto mirrorGeo = std::make_unique<ObjectGeometry>();
-    generateGrid(8.0f, 4.0f, 1, 1, mirrorGeo.get());
-    translateObjectGeometry(0.0f, 2.2f, 0.01f, mirrorGeo.get());
-    auto mirror = std::make_unique<RenderItem>();
-    initRitemWithGeoInfo(pCore, mirrorGeo.get(), mirror.get());
-    mirror->material = pCore->materials["mirror"].get();
-    pCore->ritems.insert({ "mirror", std::move(mirror) });
-    findRitemLayerWithName("stencil_mark", pCore->ritemLayers).push_back(pCore->ritems["mirror"].get());
-    findRitemLayerWithName("alpha", pCore->ritemLayers).push_back(pCore->ritems["mirror"].get());
 
     for (auto& kv : pCore->ritems) {
         pCore->allRitems.push_back(kv.second.get());
@@ -94,11 +60,16 @@ void dev_initCoreElems(D3DCore* pCore) {
 }
 
 void dev_updateCoreObjConsts(D3DCore* pCore) {
-    XMStoreFloat4x4(&pCore->ritems["ground"]->constData.texTrans,
-        XMMatrixTranspose(XMMatrixScaling(60.0f, 60.0f, 1.0f)));
+    XMStoreFloat4x4(&pCore->ritems["hill"]->constData.texTrans,
+        XMMatrixTranspose(XMMatrixScaling(40.0f, 40.0f, 1.0f)));
 
-    XMStoreFloat4x4(&pCore->ritems["wall"]->constData.texTrans,
-        XMMatrixTranspose(XMMatrixScaling(20.0f, 20.0f, 1.0f)));
+    float timeArg = pCore->timer->elapsedSecs;
+    auto lakeTexScaleMat = XMMatrixScaling(6.0f, 6.0f, 1.0f);
+    auto lakeTexTransMat = XMMatrixTranslation(timeArg * 0.01f, timeArg * 0.002f, 0.0f);
+    auto lakeTexMat = lakeTexTransMat * lakeTexScaleMat;
+    XMStoreFloat4x4(&pCore->ritems["lake"]->constData.texTrans,
+        XMMatrixTranspose(lakeTexMat));
+    pCore->ritems["lake"]->numDirtyFrames = NUM_FRAME_RESOURCES;
 
     // Apply updates.
     auto currObjConstBuff = pCore->currFrameResource->objConstBuffCPU;
@@ -117,7 +88,6 @@ void dev_updateCoreObjConsts(D3DCore* pCore) {
 void dev_updateCoreProcConsts(D3DCore* pCore) {
     ProcConsts constData;
 
-    // Reality objects
     XMMATRIX viewMat = XMLoadFloat4x4(&pCore->camera->viewTrans);
     XMMATRIX projMat = XMLoadFloat4x4(&pCore->camera->projTrans);
     XMStoreFloat4x4(&constData.viewTrans, XMMatrixTranspose(viewMat));
@@ -127,29 +97,19 @@ void dev_updateCoreProcConsts(D3DCore* pCore) {
         pCore->camera->radius, pCore->camera->theta, pCore->camera->phi);
     XMStoreFloat3(&constData.eyePosW, eyePos);
 
-    constData.ambientLight = { 0.25f, 0.25f, 0.3f, 1.0f };
+    constData.ambientLight = { 0.6f, 0.6f, 0.65f, 1.0f };
 
     XMVECTOR lightDirection = -sphericalToCartesianDX(1.0f, XM_PIDIV4, XM_PIDIV4);
     XMStoreFloat3(&constData.lights[0].direction, lightDirection);
-    constData.lights[0].strength = { 0.9f, 0.9f, 0.92f };
+    constData.lights[0].strength = { 1.0f, 1.0f, 0.9f };
 
-    constData.fogColor = XMFLOAT4(DirectX::Colors::Black);
-    constData.fogFallOffStart = 12.0f;
-    constData.fogFallOffEnd = 20.0f;
-
-    updateProcConstsWithReflectMat(XMMatrixIdentity(), &constData);    
+    constData.fogColor = XMFLOAT4(DirectX::Colors::SkyBlue);
+    // Disable frog effect.
+    constData.fogFallOffStart = 1000.0;
+    constData.fogFallOffEnd = 1200.0;
 
     // Apply updates.
     memcpy(pCore->currFrameResource->procConstBuffCPU, &constData, sizeof(ProcConsts));
-
-    // Mirror objects
-    // Target reflection plane: z = 0 (x-y plane).
-    // Note the meaning of the vector parameter passed to XMMatrixReflect:
-    // Four components correspond to the four coefficients of Ax + By + Cz + D = 0 each other.
-    updateProcConstsWithReflectMat(XMMatrixReflect(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f)), &constData);
-
-    // Apply updates.
-    memcpy(pCore->currFrameResource->procConstBuffCPU + sizeof(ProcConsts), &constData, sizeof(ProcConsts));
 }
 
 void dev_updateCoreMatConsts(D3DCore* pCore) {
@@ -221,25 +181,13 @@ void dev_drawCoreElems(D3DCore* pCore) {
     pCore->cmdList->SetGraphicsRootConstantBufferView(1, procConstBuffAddr);
 
     clearBackBuff(Colors::Black, 1.0f, 0, pCore);
-    // If the default render item layer drawing order cannot meet the requirements, you should set them manually.
-    //for (auto& kv : pCore->ritemLayers) {
-    //    // If the related PSO has not been initialized we simply skip drawing the render item layer.
-    //    if (pCore->PSOs[kv.first] == nullptr) continue;
-    //    pCore->cmdList->SetPipelineState(pCore->PSOs[kv.first].Get());
-    //    drawRenderItems(pCore, kv.second.data(), kv.second.size());
-    //}
-    drawRitemLayerWithName(pCore, "solid");
-    pCore->cmdList->OMSetStencilRef(1);
-    drawRitemLayerWithName(pCore, "stencil_mark");
-    pCore->cmdList->SetGraphicsRootConstantBufferView(1, procConstBuffAddr + sizeof(ProcConsts));
-    drawRitemLayerWithName(pCore, "stencil_reflect");
-    pCore->cmdList->OMSetStencilRef(0);
-    pCore->cmdList->SetGraphicsRootConstantBufferView(1, procConstBuffAddr);
-    drawRitemLayerWithName(pCore, "alpha");
-    // Draw the wall object.
-    pCore->cmdList->SetPipelineState(pCore->PSOs["solid"].Get());
-    auto pWallRitem = pCore->ritems["wall"].get();
-    drawRenderItems(pCore, &pWallRitem, 1);
+    // Note the alpha PSO is modified to achieve a flat mix effect.
+    // See the blend mode description in the end of createPSOs in d3dcore.cpp.
+    pCore->cmdList->SetPipelineState(pCore->PSOs["alpha"].Get());
+    drawRenderItems(pCore, pCore->solidModeRitems.data(), pCore->solidModeRitems.size());
+    drawRenderItems(pCore, pCore->wireframeModeRitems.data(), pCore->wireframeModeRitems.size());
+    drawRenderItems(pCore, pCore->alphaTestModeRitems.data(), pCore->alphaTestModeRitems.size());
+    drawRenderItems(pCore, pCore->alphaModeRitems.data(), pCore->alphaModeRitems.size());
 
     pCore->cmdList->ResourceBarrier(1,
         &CD3DX12_RESOURCE_BARRIER::Transition(
