@@ -11,6 +11,7 @@
 #pragma comment(lib, "D3D12.lib")
 #pragma comment(lib, "dxgi.lib")
 
+#include <array>
 #include <d3d12.h>
 #include <DirectXPackedVector.h>
 #include <dxgi.h>
@@ -28,12 +29,17 @@ using namespace Microsoft::WRL;
 #include "camera.h"
 #include "d3dx12.h"
 #include "frame-async.h"
+#include "material.h"
 #include "math-utils.h"
 #include "shader.h"
+#include "texture.h"
+#include "timer.h"
 #include "vmesh.h"
 
 struct D3DCore {
     HWND hWnd = nullptr;
+
+    UINT _4xMsaaQuality = 0;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     // Basic D3D components for creating a render window:
@@ -81,13 +87,6 @@ struct D3DCore {
     // At last, we create some data structures to help managing object data,
     // and a camera to store the space transformation data.
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ComPtr<ID3D12DescriptorHeap> cbvHeap = nullptr;
-
-    // Note these 2 buffers are deprecated as we have used the render item technique.
-    // All constant buffer data is stored in the collection of render items.
-    BYTE* objConstBuffCPU = nullptr;
-    ComPtr<ID3D12Resource> objConstBuffGPU = nullptr;
-
     ComPtr<ID3D12RootSignature> rootSig = nullptr;
 
     ComPtr<ID3DBlob> vsByteCode = nullptr;
@@ -96,10 +95,6 @@ struct D3DCore {
     std::vector<D3D12_INPUT_ELEMENT_DESC> inputLayout = {};
 
     std::unordered_map<std::string, ComPtr<ID3D12PipelineState>> PSOs = {};
-
-    // Note the main meshes here are deprecated as we have used the render item technique.
-    // All mesh data is stored in the collection of render items.
-    std::unordered_map<std::string, std::unique_ptr<Vmesh>> meshes = {};
 
     std::unique_ptr<Camera> camera = nullptr;
 
@@ -115,9 +110,23 @@ struct D3DCore {
     FrameResource* currFrameResource = nullptr;
     std::vector<std::unique_ptr<FrameResource>> frameResources;
 
-    std::vector<std::unique_ptr<RenderItem>> ritems; // ritems: render items
-    std::vector<RenderItem*> solidModeRitems;
-    std::vector<RenderItem*> wireframeModeRitems;
+    ProcConsts processData = {};
+
+    std::unordered_map<std::string, std::unique_ptr<RenderItem>> ritems = {};// ritems: render items
+    std::vector<RenderItem*> allRitems = {};
+    std::vector<std::pair<std::string, std::vector<RenderItem*>>> ritemLayers = {};
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    // It is a great idea to introduce some interesting techniques.
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    std::unordered_map<std::string, std::unique_ptr<Material>> materials = {};
+    std::unordered_map<std::string, std::unique_ptr<Texture>> textures = {};
+    ComPtr<ID3D12DescriptorHeap> srvDescHeap = nullptr;
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    // A well designed timer is important for animation etc.
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    std::unique_ptr<Timer> timer = nullptr;
 };
 
 std::pair<int, int> getWndSize(HWND hWnd);
@@ -126,25 +135,29 @@ void flushCmdQueue(D3DCore* pCore);
 
 void createD3DCore(HWND hWnd, D3DCore** ppCore);
 
+void checkFeatureSupports(D3DCore* pCore);
+
 void createCmdObjs(D3DCore* pCore);
 void createSwapChain(HWND hWnd, D3DCore* pCore);
 void createRtvDsvHeaps(D3DCore* pCore);
-
-// Note descriptor heap depends on initialized render items.
-// This func should be called only after render items created.
-void createDescHeap(D3DCore* pCore);
-// Note constant buffer views depends on initialized frame resources.
-// This func should be called only after frame resources created.
-void createConstBuffViews(D3DCore* pCore);
 
 void createRootSig(D3DCore* pCore);
 void createShaders(D3DCore* pCore);
 void createInputLayout(D3DCore* pCore);
 void createPSOs(D3DCore* pCore);
 
+void createBasicMaterials(D3DCore* pCore);
+// Due to root signature includes a descriptor table of textures, and materials depend on initialized textures,
+// all texture initialization funcs should be called before the root signature and the materials are created.
+void loadBasicTextures(D3DCore* pCore);
+void createDescHeaps(D3DCore* pCore);
+std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> generateStaticSamplers();
+
+void createRenderItemLayers(D3DCore* pCore);
 void createRenderItems(D3DCore* pCore);
-// Note frame resource depends on initialized render items.
-// This func should be called only after render items created.
+
+// Note frame resource depends on initialized render items, materials.
+// This func should be called only after these components created.
 void createFrameResources(D3DCore* pCore);
 
 void resizeSwapBuffs(int w, int h, D3DCore* pCore);

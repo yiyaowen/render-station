@@ -8,31 +8,74 @@
 
 #include "debugger.h"
 #include "frame-async-utils.h"
+#include "render-item-utils.h"
 
-void initFrameResource(D3DCore* pCore, UINT objBuffCount, UINT procBuffCount, FrameResource* pResource) {
+void initEmptyFrameResource(D3DCore* pCore, FrameResource* pResource) {
     checkHR(pCore->device->CreateCommandAllocator(
         D3D12_COMMAND_LIST_TYPE_DIRECT,
         IID_PPV_ARGS(&pResource->cmdAlloc)));
+}
+
+void initFResourceObjConstBuff(D3DCore* pCore, UINT objBuffCount, FrameResource* pResource) {
     createConstBuffPair(pCore, sizeof(ObjConsts), objBuffCount,
         &pResource->objConstBuffCPU, &pResource->objConstBuffGPU);
+}
+
+void initFResourceProcConstBuff(D3DCore* pCore, UINT procBuffCount, FrameResource* pResource) {
     createConstBuffPair(pCore, sizeof(ProcConsts), procBuffCount,
         &pResource->procConstBuffCPU, &pResource->procConstBuffGPU);
 }
 
-void drawRenderItems(D3DCore* pCore, RenderItem** ppRitem, UINT ritemCount) {
+void initFResourceMatConstBuff(D3DCore* pCore, UINT matBuffCount, FrameResource* pResource) {
+    createConstBuffPair(pCore, sizeof(MatConsts), matBuffCount,
+        &pResource->matConstBuffCPU, &pResource->matConstBuffGPU);
+}
+
+void initEmptyRenderItem(RenderItem* pRitem) {
+    // TODO: This func is Reserved for more complicated render item implementation.
+}
+
+void drawRenderItems(D3DCore* pCore, RenderItem** ppRitem, UINT ritemCount, std::vector<UINT> seatIdxOffsetList) {
     for (UINT i = 0; i < ritemCount; ++i) {
+        UINT seatIdxOffset = seatIdxOffsetList[i];
+
         pCore->cmdList->IASetVertexBuffers(0, 1, &ppRitem[i]->mesh->vertexBuffView);
         pCore->cmdList->IASetIndexBuffer(&ppRitem[i]->mesh->indexBuffView);
         pCore->cmdList->IASetPrimitiveTopology(ppRitem[i]->topologyType);
 
-        UINT cbvIdx = pCore->currFrameResourceIdx * pCore->solidModeRitems.size() + ppRitem[i]->objConstBuffIdx;
-        auto cbvHanlde = CD3DX12_GPU_DESCRIPTOR_HANDLE(pCore->cbvHeap->GetGPUDescriptorHandleForHeapStart());
-        cbvHanlde.Offset(cbvIdx, pCore->cbvSrvUavDescSize);
-        pCore->cmdList->SetGraphicsRootDescriptorTable(0, cbvHanlde);
+        // Bind Material Constants Buffer.
+        auto materialConstBuffAddr = pCore->currFrameResource->matConstBuffGPU->GetGPUVirtualAddress();
+        materialConstBuffAddr += ppRitem[i]->materials[seatIdxOffset]->matConstBuffIdx * calcConstBuffSize(sizeof(MatConsts));
+        pCore->cmdList->SetGraphicsRootConstantBufferView(2, materialConstBuffAddr);
+
+        // Bind Texture2D.
+        CD3DX12_GPU_DESCRIPTOR_HANDLE texHandle(pCore->srvDescHeap->GetGPUDescriptorHandleForHeapStart());
+        texHandle.Offset(ppRitem[i]->materials[seatIdxOffset]->texSrvHeapIdx, pCore->cbvSrvUavDescSize);
+        pCore->cmdList->SetGraphicsRootDescriptorTable(3, texHandle);
+
+        // Bind Object Constants Buffer.
+        auto objectConstBuffAddr = pCore->currFrameResource->objConstBuffGPU->GetGPUVirtualAddress();
+        UINT currSeatIdx = ppRitem[i]->objConstBuffStartIdx + seatIdxOffset;
+        auto currSeatAddr = objectConstBuffAddr + currSeatIdx * calcConstBuffSize(sizeof(ObjConsts));
+        pCore->cmdList->SetGraphicsRootConstantBufferView(0, currSeatAddr);
 
         Vsubmesh ritemMain = ppRitem[i]->mesh->objects["main"];
         pCore->cmdList->DrawIndexedInstanced(ritemMain.indexCount, 1, ritemMain.startIndexLocation, ritemMain.baseVertexLocation, 0);
     }
+}
+
+void drawRenderItemsInLayer(D3DCore* pCore, std::string layerName, RenderItem** ppRitem, UINT ritemCount) {
+    std::vector<UINT> seatIdxOffsetList;
+    for (UINT i = 0; i < ritemCount; ++i) {
+        seatIdxOffsetList.push_back(ppRitem[i]->boundLayerSeatOffsetTable[layerName]);
+    }
+    drawRenderItems(pCore, ppRitem, ritemCount, seatIdxOffsetList);
+}
+
+void drawRitemLayerWithName(D3DCore* pCore, std::string name) {
+    pCore->cmdList->SetPipelineState(pCore->PSOs[name].Get());
+    auto ritemLayer = findRitemLayerWithName(name, pCore->ritemLayers);
+    drawRenderItemsInLayer(pCore, name, ritemLayer.data(), ritemLayer.size());
 }
 
 UINT calcConstBuffSize(UINT byteSize)
