@@ -11,10 +11,7 @@
 #include "d3dcore.h"
 #include "debugger.h"
 #include "frame-async-utils.h"
-#include "render-item-utils.h"
-#include "timer-utils.h"
 #include "vmesh-utils.h"
-#include "DDSTextureLoader.h"
 
 std::pair<int, int> getWndSize(HWND hWnd) {
     RECT rect;
@@ -65,9 +62,6 @@ void createD3DCore(HWND hWnd, D3DCore** ppCore) {
 
     createRtvDsvHeaps(pCore);
 
-    loadBasicTextures(pCore);
-    createDescHeaps(pCore);
-
     createRootSig(pCore);
 
     createShaders(pCore);
@@ -76,34 +70,17 @@ void createD3DCore(HWND hWnd, D3DCore** ppCore) {
 
     createPSOs(pCore);
 
-    createBasicMaterials(pCore);
-
     createRenderItems(pCore);
 
+    createDescHeap(pCore);
+
     createFrameResources(pCore);
+
+    createConstBuffViews(pCore);
 
     resizeSwapBuffs(wndW, wndH, pCore);
     pCore->camera = std::make_unique<Camera>();
     initCamera(wndW, wndH, pCore->camera.get());
-
-    pCore->timer = std::make_unique<Timer>();
-    initTimer(pCore->timer.get());
-}
-
-void checkFeatureSupports(D3DCore* pCore) {
-    D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS qualityLevels;
-    qualityLevels.Format = pCore->swapChainBuffFormat;
-    qualityLevels.SampleCount = 4; // 4xMSAA
-    qualityLevels.Flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
-    qualityLevels.NumQualityLevels = 0;
-    pCore->device->CheckFeatureSupport(
-        D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS,
-        &qualityLevels,
-        sizeof(qualityLevels));
-    UINT _4xMsaaQuality = qualityLevels.NumQualityLevels;
-    assert(_4xMsaaQuality > 0);
-
-    pCore->_4xMsaaQuality = _4xMsaaQuality - 1;
 }
 
 void createCmdObjs(D3DCore* pCore) {
@@ -141,8 +118,6 @@ void createSwapChain(HWND hWnd, D3DCore* pCore) {
     swapChainDesc.BufferDesc.Format = pCore->swapChainBuffFormat;
     swapChainDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
     swapChainDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-    //swapChainDesc.SampleDesc.Count = 4; // 4xMSAA
-    //swapChainDesc.SampleDesc.Quality = pCore->_4xMsaaQuality;
     swapChainDesc.SampleDesc.Count = 1;
     swapChainDesc.SampleDesc.Quality = 0;
     swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -177,20 +152,70 @@ void createRtvDsvHeaps(D3DCore* pCore) {
         &dsvHeapDesc, IID_PPV_ARGS(&pCore->dsvHeap)));
 }
 
+void createDescHeap(D3DCore* pCore) {
+    D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc;
+    cbvHeapDesc.NumDescriptors = (pCore->ritems.size() + 1) * NUM_FRAME_RESOURCES;
+    cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    cbvHeapDesc.NodeMask = 0;
+    checkHR(pCore->device->CreateDescriptorHeap(&cbvHeapDesc,
+        IID_PPV_ARGS(&pCore->cbvHeap)));
+}
+
+void createConstBuffViews(D3DCore* pCore) {
+    UINT objConstBuffByteSize = calcConstBuffSize(sizeof(ObjConsts));
+    UINT objCount = pCore->solidModeRitems.size();
+
+    for (int i = 0; i < NUM_FRAME_RESOURCES; ++i) {
+        auto objConstBuff = pCore->frameResources[i]->objConstBuffGPU;
+        for (int j = 0; j < objCount; ++j) {
+            auto constBuffAddr = objConstBuff->GetGPUVirtualAddress();
+            constBuffAddr += j * objConstBuffByteSize;
+
+            D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
+            cbvDesc.BufferLocation = constBuffAddr;
+            cbvDesc.SizeInBytes = objConstBuffByteSize;
+
+            int heapIdx = i * objCount + j;
+            auto handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(pCore->cbvHeap->GetCPUDescriptorHandleForHeapStart());
+            handle.Offset(heapIdx, pCore->cbvSrvUavDescSize);
+
+            pCore->device->CreateConstantBufferView(&cbvDesc, handle);
+        }
+    }
+
+    UINT procConstBuffByteSize = calcConstBuffSize(sizeof(ProcConsts));
+
+    for (int i = 0; i < NUM_FRAME_RESOURCES; ++i) {
+        auto procConstBuff = pCore->frameResources[i]->procConstBuffGPU;
+
+        auto constBuffAddr = procConstBuff->GetGPUVirtualAddress();
+
+        D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
+        cbvDesc.BufferLocation = constBuffAddr;
+        cbvDesc.SizeInBytes = procConstBuffByteSize;
+
+        int heapIdx = NUM_FRAME_RESOURCES * objCount + i;
+        auto handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(pCore->cbvHeap->GetCPUDescriptorHandleForHeapStart());
+        handle.Offset(heapIdx, pCore->cbvSrvUavDescSize);
+
+        pCore->device->CreateConstantBufferView(&cbvDesc, handle);
+    }
+}
+
 void createRootSig(D3DCore* pCore) {
-    CD3DX12_ROOT_PARAMETER slotRootParameter[4];
+    CD3DX12_ROOT_PARAMETER slotRootParameter[2];
 
-    slotRootParameter[0].InitAsConstantBufferView(0);
-    slotRootParameter[1].InitAsConstantBufferView(1);
-    slotRootParameter[2].InitAsConstantBufferView(2);
-    CD3DX12_DESCRIPTOR_RANGE texTable;
-    texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-    slotRootParameter[3].InitAsDescriptorTable(1, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);
+    CD3DX12_DESCRIPTOR_RANGE cbvTable0;
+    cbvTable0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+    slotRootParameter[0].InitAsDescriptorTable(1, &cbvTable0);
 
-    auto samplers = generateStaticSamplers();
+    CD3DX12_DESCRIPTOR_RANGE cbvTable1;
+    cbvTable1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
+    slotRootParameter[1].InitAsDescriptorTable(1, &cbvTable1);
 
     // A root signature is an array of root parameters.
-    CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(4, slotRootParameter, samplers.size(), samplers.data(),
+    CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(2, slotRootParameter, 0, nullptr,
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     // create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
@@ -219,266 +244,61 @@ void createShaders(D3DCore* pCore) {
 void createInputLayout(D3DCore* pCore) {
     pCore->inputLayout = {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 } };
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 } };
 }
 
 void createPSOs(D3DCore* pCore) {
-    // Solid
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC solidPsoDesc = {};
-    solidPsoDesc.InputLayout = { pCore->inputLayout.data(), (UINT)pCore->inputLayout.size() };
-    solidPsoDesc.pRootSignature = pCore->rootSig.Get();
-    solidPsoDesc.VS = {
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+    psoDesc.InputLayout = { pCore->inputLayout.data(), (UINT)pCore->inputLayout.size() };
+    psoDesc.pRootSignature = pCore->rootSig.Get();
+    psoDesc.VS = {
         reinterpret_cast<BYTE*>(pCore->vsByteCode->GetBufferPointer()),
         pCore->vsByteCode->GetBufferSize() };
-    solidPsoDesc.PS = {
+    psoDesc.PS = {
         reinterpret_cast<BYTE*>(pCore->psByteCode->GetBufferPointer()),
         pCore->psByteCode->GetBufferSize() };
-    solidPsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-    solidPsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-    solidPsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-    solidPsoDesc.SampleMask = UINT_MAX;
-    solidPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-    solidPsoDesc.NumRenderTargets = 1;
-    solidPsoDesc.RTVFormats[0] = pCore->swapChainBuffFormat;
-    //psoDesc.SampleDesc.Count = 4; // 4xMSAA
-    //psoDesc.SampleDesc.Quality = pCore->_4xMsaaQuality;
-    solidPsoDesc.SampleDesc.Count = 1;
-    solidPsoDesc.SampleDesc.Quality = 0;
-    solidPsoDesc.DSVFormat = pCore->depthStencilBuffFormat;
-    checkHR(pCore->device->CreateGraphicsPipelineState(&solidPsoDesc, IID_PPV_ARGS(&pCore->PSOs["solid"])));
+    psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+    psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+    psoDesc.SampleMask = UINT_MAX;
+    psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    psoDesc.NumRenderTargets = 1;
+    psoDesc.RTVFormats[0] = pCore->swapChainBuffFormat;
+    psoDesc.SampleDesc.Count = 1;
+    psoDesc.SampleDesc.Quality = 0;
+    psoDesc.DSVFormat = pCore->depthStencilBuffFormat;
+    checkHR(pCore->device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pCore->PSOs["solid"])));
 
-    // Wireframe
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC wireframePsoDesc = solidPsoDesc;
-    wireframePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
-    checkHR(pCore->device->CreateGraphicsPipelineState(&wireframePsoDesc, IID_PPV_ARGS(&pCore->PSOs["wireframe"])));
-
-    // Alpha Test
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC alphaTestPsoDesc = solidPsoDesc;
-    alphaTestPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-    checkHR(pCore->device->CreateGraphicsPipelineState(&alphaTestPsoDesc, IID_PPV_ARGS(&pCore->PSOs["alpha_test"])));
-
-    // Alpha
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC alphaPsoDesc = solidPsoDesc;
-    D3D12_RENDER_TARGET_BLEND_DESC rtbd = alphaPsoDesc.BlendState.RenderTarget[0];
-    rtbd.BlendEnable = true;
-    rtbd.SrcBlend = D3D12_BLEND_SRC_ALPHA;
-    rtbd.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-    rtbd.BlendOp = D3D12_BLEND_OP_ADD;
-    alphaPsoDesc.BlendState.RenderTarget[0] = rtbd;
-    checkHR(pCore->device->CreateGraphicsPipelineState(&alphaPsoDesc, IID_PPV_ARGS(&pCore->PSOs["alpha"])));
-}
-
-void createBasicMaterials(D3DCore* pCore) {
-    auto red = std::make_unique<Material>();
-    red->name = "red";
-    red->matConstBuffIdx = 0;
-    red->texSrvHeapIdx = pCore->textures["default"]->srvHeapIdx;
-    red->constData.diffuseAlbedo = XMFLOAT4(Colors::Red);
-    red->constData.fresnelR0 = { 1.0f, 0.0f, 0.0f };
-    red->constData.roughness = 0.0f;
-    pCore->materials[red->name] = std::move(red);
-
-    auto green = std::make_unique<Material>();
-    green->name = "green";
-    green->matConstBuffIdx = 1;
-    green->texSrvHeapIdx = pCore->textures["default"]->srvHeapIdx;
-    green->constData.diffuseAlbedo = XMFLOAT4(Colors::Green);
-    green->constData.fresnelR0 = { 0.0f, 1.0f, 0.0f };
-    green->constData.roughness = 0.0f;
-    pCore->materials[green->name] = std::move(green);
-
-    auto blue = std::make_unique<Material>();
-    blue->name = "blue";
-    blue->matConstBuffIdx = 2;
-    blue->texSrvHeapIdx = pCore->textures["default"]->srvHeapIdx;
-    blue->constData.diffuseAlbedo = XMFLOAT4(Colors::Blue);
-    blue->constData.fresnelR0 = { 0.0f, 0.0f, 1.0f };
-    blue->constData.roughness = 0.0f;
-    pCore->materials[blue->name] = std::move(blue);
-
-    auto grass = std::make_unique<Material>();
-    grass->name = "grass";
-    grass->matConstBuffIdx = 3;
-    grass->texSrvHeapIdx = pCore->textures["grass"]->srvHeapIdx;
-    grass->constData.diffuseAlbedo = { 0.2f, 0.4f, 0.2f, 1.0f };
-    grass->constData.fresnelR0 = { 0.001f, 0.001f, 0.001f };
-    grass->constData.roughness = 0.8f;
-    pCore->materials[grass->name] = std::move(grass);
-
-    auto water = std::make_unique<Material>();
-    water->name = "water";
-    water->matConstBuffIdx = 4;
-    water->texSrvHeapIdx = pCore->textures["water"]->srvHeapIdx;
-    water->constData.diffuseAlbedo = { 0.4f, 0.4f, 0.6f, 0.6f };
-    water->constData.fresnelR0 = { 0.1f, 0.1f, 0.1f };
-    water->constData.roughness = 0.0f;
-    pCore->materials[water->name] = std::move(water);
-
-    auto crate = std::make_unique<Material>();
-    crate->name = "crate";
-    crate->matConstBuffIdx = 5;
-    crate->texSrvHeapIdx = pCore->textures["crate"]->srvHeapIdx;
-    crate->constData.diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
-    crate->constData.fresnelR0 = { 0.01f, 0.01f, 0.01f };
-    crate->constData.roughness = 0.4f;
-    pCore->materials[crate->name] = std::move(crate);
-
-    auto fence = std::make_unique<Material>();
-    fence->name = "fence";
-    fence->matConstBuffIdx = 6;
-    fence->texSrvHeapIdx = pCore->textures["fence"]->srvHeapIdx;
-    fence->constData.diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
-    fence->constData.fresnelR0 = { 0.06f, 0.06f, 0.06f };
-    fence->constData.roughness = 0.1f;
-    pCore->materials[fence->name] = std::move(fence);
-}
-
-void loadBasicTextures(D3DCore* pCore) {
-    checkHR(pCore->cmdAlloc->Reset());
-    checkHR(pCore->cmdList->Reset(pCore->cmdAlloc.Get(), nullptr));
-
-    auto defaultTex = std::make_unique<Texture>();
-    defaultTex->name = "default";
-    checkHR(CreateDDSTextureFromFile12(pCore->device.Get(), pCore->cmdList.Get(),
-        L"textures/DefaultWhite.dds", defaultTex->resource, defaultTex->uploadHeap));
-    pCore->textures[defaultTex->name] = std::move(defaultTex);
-
-    auto grassTex = std::make_unique<Texture>();
-    grassTex->name = "grass";
-    checkHR(CreateDDSTextureFromFile12(pCore->device.Get(), pCore->cmdList.Get(),
-        L"textures/grass.dds", grassTex->resource, grassTex->uploadHeap));
-    pCore->textures[grassTex->name] = std::move(grassTex);
-
-    auto waterTex = std::make_unique<Texture>();
-    waterTex->name = "water";
-    checkHR(CreateDDSTextureFromFile12(pCore->device.Get(), pCore->cmdList.Get(),
-        L"textures/water1.dds", waterTex->resource, waterTex->uploadHeap));
-    pCore->textures[waterTex->name] = std::move(waterTex);
-
-    auto crateTex = std::make_unique<Texture>();
-    crateTex->name = "crate";
-    checkHR(CreateDDSTextureFromFile12(pCore->device.Get(), pCore->cmdList.Get(),
-        L"textures/WoodCrate01.dds", crateTex->resource, crateTex->uploadHeap));
-    pCore->textures[crateTex->name] = std::move(crateTex);
-
-    auto fenceTex = std::make_unique<Texture>();
-    fenceTex->name = "fence";
-    checkHR(CreateDDSTextureFromFile12(pCore->device.Get(), pCore->cmdList.Get(),
-        L"textures/WireFence.dds", fenceTex->resource, fenceTex->uploadHeap));
-    pCore->textures[fenceTex->name] = std::move(fenceTex);
-
-    checkHR(pCore->cmdList->Close());
-    ID3D12CommandList* cmdLists[] = { pCore->cmdList.Get() };
-    pCore->cmdQueue->ExecuteCommandLists(1, cmdLists);
-    flushCmdQueue(pCore);
-}
-
-void createDescHeaps(D3DCore* pCore) {
-    // SRV heap
-    D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-    srvHeapDesc.NumDescriptors = pCore->textures.size();
-    srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-    srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-    checkHR(pCore->device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&pCore->srvDescHeap)));
-
-    int srvHeapIdx = 0;
-    CD3DX12_CPU_DESCRIPTOR_HANDLE handle(pCore->srvDescHeap->GetCPUDescriptorHandleForHeapStart());
-    for (auto& kv : pCore->textures) {
-        kv.second->srvHeapIdx = srvHeapIdx;
-        auto tex = kv.second->resource;
-        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-        srvDesc.Format = tex->GetDesc().Format;
-        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-        srvDesc.Texture2D.MostDetailedMip = 0;
-        srvDesc.Texture2D.MipLevels = tex->GetDesc().MipLevels;
-        srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-        pCore->device->CreateShaderResourceView(tex.Get(), &srvDesc, handle);
-        ++srvHeapIdx;
-        handle.Offset(1, pCore->cbvSrvUavDescSize);
-    }
-}
-
-std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> generateStaticSamplers() {
-    const CD3DX12_STATIC_SAMPLER_DESC pointWrap(0,
-        D3D12_FILTER_MIN_MAG_MIP_POINT,
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP);
-
-    const CD3DX12_STATIC_SAMPLER_DESC pointClamp(1,
-        D3D12_FILTER_MIN_MAG_MIP_POINT,
-        D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-        D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-        D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
-
-    const CD3DX12_STATIC_SAMPLER_DESC linearWrap(2,
-        D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP);
-
-    const CD3DX12_STATIC_SAMPLER_DESC linearClamp(3,
-        D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-        D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-        D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-        D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
-
-    const CD3DX12_STATIC_SAMPLER_DESC anisotropicWrap(4,
-        D3D12_FILTER_ANISOTROPIC,
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-        0.0f, 8);
-
-    const CD3DX12_STATIC_SAMPLER_DESC anisotropicClamp(5,
-        D3D12_FILTER_ANISOTROPIC,
-        D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-        D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-        D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-        0.0f, 8);
-
-    return { pointWrap, pointClamp, linearWrap, linearClamp, anisotropicWrap, anisotropicClamp };
+    psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
+    checkHR(pCore->device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pCore->PSOs["wireframe"])));
 }
 
 void createRenderItems(D3DCore* pCore) {
-    auto xAxisGeo = std::make_unique<ObjectGeometry>();
-    generateCube(XMFLOAT3(100.0f, 0.01f, 0.01f), xAxisGeo.get());
-    auto xAxis = std::make_unique<RenderItem>();
-    initRitemWithGeoInfo(pCore, xAxisGeo.get(), xAxis.get());
-    xAxis->material = pCore->materials["red"].get();
-    pCore->ritems.insert({ "X", std::move(xAxis) });
-    pCore->solidModeRitems.push_back(pCore->ritems["X"].get());
+    auto cube = std::make_unique<RenderItem>();
 
-    auto yAxisGeo = std::make_unique<ObjectGeometry>();
-    generateCube(XMFLOAT3(0.01f, 100.0f, 0.01f), yAxisGeo.get());
-    auto yAxis = std::make_unique<RenderItem>();
-    initRitemWithGeoInfo(pCore, yAxisGeo.get(), yAxis.get());
-    yAxis->material = pCore->materials["green"].get();
-    pCore->ritems.insert({ "Y", std::move(yAxis) });
-    pCore->solidModeRitems.push_back(pCore->ritems["Y"].get());
+    cube->objConstBuffIdx = 0;
 
-    auto zAxisGeo = std::make_unique<ObjectGeometry>();
-    generateCube(XMFLOAT3(0.01f, 0.01f, 100.0f), zAxisGeo.get());
-    auto zAxis = std::make_unique<RenderItem>();
-    initRitemWithGeoInfo(pCore, zAxisGeo.get(), zAxis.get());
-    zAxis->material = pCore->materials["blue"].get();
-    pCore->ritems.insert({ "Z", std::move(zAxis) });
-    pCore->solidModeRitems.push_back(pCore->ritems["Z"].get());
+    ObjConsts constData;
+    constData.worldTrans = makeIdentityFloat4x4();
+    cube->constData = constData;
 
-    for (auto& kv : pCore->ritems) {
-        pCore->solidModeRitems.push_back(kv.second.get());
+    cube->mesh = std::make_unique<Vmesh>();
+    auto cubeGeo = std::make_unique<ObjectGeometry>();
+    generateCube(XMFLOAT3(1, 1, 1), (XMFLOAT4)DirectX::Colors::Black, cubeGeo.get());
+    initVmesh(pCore, cubeGeo->vertices.data(), cubeGeo->vertexDataSize(),
+        cubeGeo->indices.data(), cubeGeo->indexDataSize(), cube->mesh.get());
+    cube->mesh->objects["main"] = cubeGeo->locationInfo;
+
+    pCore->ritems.push_back(std::move(cube));
+    for (auto& ritem : pCore->ritems) {
+        pCore->solidModeRitems.push_back(ritem.get());
     }
 }
 
 void createFrameResources(D3DCore* pCore) {
     for (int i = 0; i < NUM_FRAME_RESOURCES; ++i) {
         auto resource = std::make_unique<FrameResource>();
-        initEmptyFrameResource(pCore, resource.get());
-        initFResourceObjConstBuff(pCore, pCore->ritems.size(), resource.get());
-        initFResourceProcConstBuff(pCore, 1, resource.get());
-        initFResourceMatConstBuff(pCore, pCore->materials.size(), resource.get());
+        initFrameResource(pCore, pCore->ritems.size(), 1, resource.get());
         pCore->frameResources.push_back(std::move(resource));
     }
 }
@@ -515,8 +335,6 @@ void resizeSwapBuffs(int w, int h, D3DCore* pCore) {
     depthStencilDesc.DepthOrArraySize = 1;
     depthStencilDesc.MipLevels = 1;
     depthStencilDesc.Format = pCore->depthStencilBuffFormat;
-    //depthStencilDesc.SampleDesc.Count = 4; // 4xMSAA
-    //depthStencilDesc.SampleDesc.Quality = pCore->_4xMsaaQuality;
     depthStencilDesc.SampleDesc.Count = 1;
     depthStencilDesc.SampleDesc.Quality = 0;
     depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;

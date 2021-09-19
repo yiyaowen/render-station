@@ -9,13 +9,7 @@
 
 #include "d3dcore.h"
 
-void initEmptyFrameResource(D3DCore* pCore, FrameResource* pResource);
-
-void initFResourceObjConstBuff(D3DCore* pCore, UINT objBuffCount, FrameResource* pResource);
-void initFResourceProcConstBuff(D3DCore* pCore, UINT procBuffCount, FrameResource* pResource);
-void initFResourceMatConstBuff(D3DCore* pCore, UINT matBuffCount, FrameResource* pResource);
-
-void initEmptyRenderItem(RenderItem* pRitem);
+void initFrameResource(D3DCore* pCore, UINT objBuffCount, UINT procBuffCount, FrameResource* pResource);
 
 void drawRenderItems(D3DCore* pCore, RenderItem** ppRitem, UINT ritemCount);
 

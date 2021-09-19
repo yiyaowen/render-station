@@ -9,34 +9,14 @@
 #include "debugger.h"
 #include "frame-async-utils.h"
 
-void initEmptyFrameResource(D3DCore* pCore, FrameResource* pResource) {
+void initFrameResource(D3DCore* pCore, UINT objBuffCount, UINT procBuffCount, FrameResource* pResource) {
     checkHR(pCore->device->CreateCommandAllocator(
         D3D12_COMMAND_LIST_TYPE_DIRECT,
         IID_PPV_ARGS(&pResource->cmdAlloc)));
-}
-
-void initFResourceObjConstBuff(D3DCore* pCore, UINT objBuffCount, FrameResource* pResource) {
     createConstBuffPair(pCore, sizeof(ObjConsts), objBuffCount,
         &pResource->objConstBuffCPU, &pResource->objConstBuffGPU);
-}
-
-void initFResourceProcConstBuff(D3DCore* pCore, UINT procBuffCount, FrameResource* pResource) {
     createConstBuffPair(pCore, sizeof(ProcConsts), procBuffCount,
         &pResource->procConstBuffCPU, &pResource->procConstBuffGPU);
-}
-
-void initFResourceMatConstBuff(D3DCore* pCore, UINT matBuffCount, FrameResource* pResource) {
-    createConstBuffPair(pCore, sizeof(MatConsts), matBuffCount,
-        &pResource->matConstBuffCPU, &pResource->matConstBuffGPU);
-}
-
-void initEmptyRenderItem(RenderItem* pRitem) {
-    pRitem->objConstBuffIdx = 0;
-
-    ObjConsts constData;
-    constData.worldTrans = makeIdentityFloat4x4();
-    constData.invTrWorldTrans = makeIdentityFloat4x4();
-    pRitem->constData = constData;
 }
 
 void drawRenderItems(D3DCore* pCore, RenderItem** ppRitem, UINT ritemCount) {
@@ -45,17 +25,10 @@ void drawRenderItems(D3DCore* pCore, RenderItem** ppRitem, UINT ritemCount) {
         pCore->cmdList->IASetIndexBuffer(&ppRitem[i]->mesh->indexBuffView);
         pCore->cmdList->IASetPrimitiveTopology(ppRitem[i]->topologyType);
 
-        auto constBuffAddr = pCore->currFrameResource->objConstBuffGPU->GetGPUVirtualAddress();
-        constBuffAddr += ppRitem[i]->objConstBuffIdx * calcConstBuffSize(sizeof(ObjConsts));
-        pCore->cmdList->SetGraphicsRootConstantBufferView(0, constBuffAddr);
-
-        constBuffAddr = pCore->currFrameResource->matConstBuffGPU->GetGPUVirtualAddress();
-        constBuffAddr += ppRitem[i]->material->matConstBuffIdx * calcConstBuffSize(sizeof(MatConsts));
-        pCore->cmdList->SetGraphicsRootConstantBufferView(2, constBuffAddr);
-
-        CD3DX12_GPU_DESCRIPTOR_HANDLE texHandle(pCore->srvDescHeap->GetGPUDescriptorHandleForHeapStart());
-        texHandle.Offset(ppRitem[i]->material->texSrvHeapIdx, pCore->cbvSrvUavDescSize);
-        pCore->cmdList->SetGraphicsRootDescriptorTable(3, texHandle);
+        UINT cbvIdx = pCore->currFrameResourceIdx * pCore->solidModeRitems.size() + ppRitem[i]->objConstBuffIdx;
+        auto cbvHanlde = CD3DX12_GPU_DESCRIPTOR_HANDLE(pCore->cbvHeap->GetGPUDescriptorHandleForHeapStart());
+        cbvHanlde.Offset(cbvIdx, pCore->cbvSrvUavDescSize);
+        pCore->cmdList->SetGraphicsRootDescriptorTable(0, cbvHanlde);
 
         Vsubmesh ritemMain = ppRitem[i]->mesh->objects["main"];
         pCore->cmdList->DrawIndexedInstanced(ritemMain.indexCount, 1, ritemMain.startIndexLocation, ritemMain.baseVertexLocation, 0);

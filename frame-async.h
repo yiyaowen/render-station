@@ -8,12 +8,9 @@
 #pragma once
 
 #include "geometry-utils.h"
-#include "material.h"
 #include "shader.h"
 
-#ifndef NUM_FRAME_RESOURCES
 #define NUM_FRAME_RESOURCES 3
-#endif
 
 struct FrameResource {
     // Every frame needs its own command allocator to push commands to the queue.
@@ -28,8 +25,6 @@ struct FrameResource {
     ComPtr<ID3D12Resource> objConstBuffGPU = nullptr;
     BYTE* procConstBuffCPU = nullptr;
     ComPtr<ID3D12Resource> procConstBuffGPU = nullptr;
-    BYTE* matConstBuffCPU = nullptr;
-    ComPtr<ID3D12Resource> matConstBuffGPU = nullptr;
     UINT64 currFenceValue = 0;
 };
 
@@ -47,6 +42,4 @@ struct RenderItem {
     UINT objConstBuffIdx = -1;
     std::unique_ptr<Vmesh> mesh = nullptr;
     D3D12_PRIMITIVE_TOPOLOGY topologyType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-    // We have material now. Cool!
-    Material* material = nullptr;
 };
