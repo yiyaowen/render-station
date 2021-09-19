@@ -21,8 +21,8 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{46587253-b61a-4dda-b326-d4bfc64eb977}</ProjectGuid>
-    <RootNamespace>RenderStation</RootNamespace>
+    <ProjectGuid>{eb8ba127-8052-4fcc-8ca8-d6955c3c8bdb}</ProjectGuid>
+    <RootNamespace>RenderStationC</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -87,7 +87,8 @@
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>true</ConformanceMode>
+      <ConformanceMode>false</ConformanceMode>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -116,6 +117,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -139,27 +141,29 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="Application.h" />
-    <ClInclude Include="ApplicationException.h" />
+    <ClCompile Include="camera.cpp" />
+    <ClCompile Include="d3dcore.cpp" />
+    <ClCompile Include="devfunc.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="math-utils.cpp" />
+    <ClCompile Include="shader.cpp" />
+    <ClCompile Include="vmesh-utils.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="camera.h" />
+    <ClInclude Include="d3dcore.h" />
     <ClInclude Include="d3dx12.h" />
-    <ClInclude Include="FrameResource.h" />
-    <ClInclude Include="RenderItem.h" />
-    <ClInclude Include="RenderMath.h" />
-    <ClInclude Include="ShaderTools.h" />
-    <ClInclude Include="UploadBuffer.h" />
-    <ClInclude Include="VertexMesh.h" />
+    <ClInclude Include="debugger.h" />
+    <ClInclude Include="devfunc.h" />
+    <ClInclude Include="math-utils.h" />
+    <ClInclude Include="shader.h" />
+    <ClInclude Include="vmesh-utils.h" />
+    <ClInclude Include="vmesh.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Application.cpp" />
-    <ClCompile Include="FrameResource.cpp" />
-    <ClCompile Include="GeometryShapesDemo.cpp" />
-    <ClCompile Include="ShaderTools.cpp" />
-    <ClCompile Include="UploadBuffer.cpp" />
-    <ClCompile Include="VertexMesh.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="TestDemos\Shaders\GeometryShapesDemo.hlsl">
+    <None Include="shaders\rs.hlsl">
       <FileType>Document</FileType>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">main</EntryPointName>
     </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
