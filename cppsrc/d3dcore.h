@@ -39,6 +39,8 @@ using namespace Microsoft::WRL;
 struct D3DCore {
     HWND hWnd = nullptr;
 
+    XMFLOAT4 clearColor = {};
+
     UINT _4xMsaaQuality = 0;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -52,6 +54,7 @@ struct D3DCore {
     int currBackBuffIdx = 0;
     DXGI_FORMAT swapChainBuffFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
     ComPtr<ID3D12Resource> swapChainBuffs[2] = {};
+    ComPtr<ID3D12Resource> msaaBackBuff = nullptr;
     DXGI_FORMAT depthStencilBuffFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
     ComPtr<ID3D12Resource> depthStencilBuff = nullptr;
 
@@ -87,12 +90,21 @@ struct D3DCore {
     // At last, we create some data structures to help managing object data,
     // and a camera to store the space transformation data.
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ComPtr<ID3D12RootSignature> rootSig = nullptr;
+    std::unordered_map<std::string, ComPtr<ID3D12RootSignature>> rootSigs = {};
 
-    ComPtr<ID3DBlob> vsByteCode = nullptr;
-    ComPtr<ID3DBlob> psByteCode = nullptr;
+    // General Shaders
+    std::unique_ptr<Shader> s_default = nullptr;
+    // Effects Geometry Shaders
+    std::unique_ptr<Shader> s_subdivisionGs = nullptr;
+    std::unique_ptr<Shader> s_billboardGs = nullptr;
+    std::unique_ptr<Shader> s_cylinderGeneratorGs = nullptr;
+    std::unique_ptr<Shader> s_explosionGs = nullptr;
+    std::unique_ptr<Shader> s_verNormalVisibleGs = nullptr;
+    std::unique_ptr<Shader> s_triNormalVisibleGs = nullptr;
+    // Computer Shaders
+    std::unique_ptr<Shader> s_vecAddDemoCs = nullptr;
 
-    std::vector<D3D12_INPUT_ELEMENT_DESC> inputLayout = {};
+    std::vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout = {};
 
     std::unordered_map<std::string, ComPtr<ID3D12PipelineState>> PSOs = {};
 
@@ -120,8 +132,10 @@ struct D3DCore {
     // It is a great idea to introduce some interesting techniques.
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     std::unordered_map<std::string, std::unique_ptr<Material>> materials = {};
-    std::unordered_map<std::string, std::unique_ptr<Texture>> textures = {};
-    ComPtr<ID3D12DescriptorHeap> srvDescHeap = nullptr;
+    std::unordered_map<std::string, std::unique_ptr<Texture>> textures2d = {};
+    std::unordered_map<std::string, std::unique_ptr<Texture>> textures2darray = {};
+    ComPtr<ID3D12DescriptorHeap> srvUavHeap = nullptr;
+    ComPtr<ID3D12DescriptorHeap> uavDescHeap = nullptr;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     // A well designed timer is important for animation etc.
@@ -133,7 +147,7 @@ std::pair<int, int> getWndSize(HWND hWnd);
 
 void flushCmdQueue(D3DCore* pCore);
 
-void createD3DCore(HWND hWnd, D3DCore** ppCore);
+void createD3DCore(HWND hWnd, XMFLOAT4 clearColor, D3DCore** ppCore);
 
 void checkFeatureSupports(D3DCore* pCore);
 
@@ -141,7 +155,7 @@ void createCmdObjs(D3DCore* pCore);
 void createSwapChain(HWND hWnd, D3DCore* pCore);
 void createRtvDsvHeaps(D3DCore* pCore);
 
-void createRootSig(D3DCore* pCore);
+void createRootSigs(D3DCore* pCore);
 void createShaders(D3DCore* pCore);
 void createInputLayout(D3DCore* pCore);
 void createPSOs(D3DCore* pCore);
@@ -160,6 +174,7 @@ void createRenderItems(D3DCore* pCore);
 // This func should be called only after these components created.
 void createFrameResources(D3DCore* pCore);
 
-void resizeSwapBuffs(int w, int h, D3DCore* pCore);
+void resizeSwapBuffs(int w, int h, XMFLOAT4 clearColor, D3DCore* pCore);
 
-void clearBackBuff(XMVECTORF32 color, FLOAT depth, UINT8 stencil, D3DCore* pCore);
+void clearBackBuff(D3D12_CPU_DESCRIPTOR_HANDLE msaaRtvDescHandle, XMVECTORF32 color,
+    D3D12_CPU_DESCRIPTOR_HANDLE dsvDescHandle, FLOAT depth, UINT8 stencil, D3DCore* pCore);

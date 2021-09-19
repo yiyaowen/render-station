@@ -11,11 +11,11 @@
 #include "render-item-utils.h"
 #include "vmesh-utils.h"
 
-void initRitemWithGeoInfo(D3DCore* pCore, ObjectGeometry* geo, UINT subritemCount, RenderItem* ritem) {
+void initRitemWithGeoInfo(D3DCore* pCore, ObjectGeometry* geo, UINT constBuffSeatCount, RenderItem* ritem) {
     initEmptyRenderItem(ritem);
-    ritem->objConstBuffSeatCount = subritemCount;
-    ritem->constData.resize(subritemCount);
-    ritem->materials.resize(subritemCount);
+    ritem->objConstBuffSeatCount = constBuffSeatCount;
+    ritem->constData.resize(constBuffSeatCount);
+    ritem->materials.resize(constBuffSeatCount);
     ritem->mesh = std::make_unique<Vmesh>();
     initVmesh(pCore, geo->vertices.data(), geo->vertexDataSize(),
         geo->indices.data(), geo->indexDataSize(), ritem->mesh.get());

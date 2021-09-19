@@ -11,7 +11,7 @@
 
 #include "d3dcore.h"
 
-void initRitemWithGeoInfo(D3DCore* pCore, ObjectGeometry* geo, UINT subritemCount, RenderItem* ritem);
+void initRitemWithGeoInfo(D3DCore* pCore, ObjectGeometry* geo, UINT constBuffSeatCount, RenderItem* ritem);
 
 // When a render item is initialized, its objConstBuffStartIdx is set to 0 by default. However we need
 // the indices to match their actual orders in the render item collection, which is done by this func.

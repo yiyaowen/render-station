@@ -36,7 +36,7 @@ void flushCmdQueue(D3DCore* pCore) {
     }
 }
 
-void createD3DCore(HWND hWnd, D3DCore** ppCore) {
+void createD3DCore(HWND hWnd, XMFLOAT4 clearColor, D3DCore** ppCore) {
     checkNull((*ppCore) = new D3DCore);
 
     D3DCore* pCore = *ppCore;
@@ -59,6 +59,8 @@ void createD3DCore(HWND hWnd, D3DCore** ppCore) {
     pCore->dsvDescSize = pCore->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
     pCore->cbvSrvUavDescSize = pCore->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
+    checkFeatureSupports(pCore);
+
     createCmdObjs(pCore);
     
     createSwapChain(hWnd, pCore);
@@ -68,7 +70,7 @@ void createD3DCore(HWND hWnd, D3DCore** ppCore) {
     loadBasicTextures(pCore);
     createDescHeaps(pCore);
 
-    createRootSig(pCore);
+    createRootSigs(pCore);
 
     createShaders(pCore);
 
@@ -83,7 +85,8 @@ void createD3DCore(HWND hWnd, D3DCore** ppCore) {
 
     createFrameResources(pCore);
 
-    resizeSwapBuffs(wndW, wndH, pCore);
+    pCore->clearColor = clearColor;
+    resizeSwapBuffs(wndW, wndH, clearColor, pCore);
     pCore->camera = std::make_unique<Camera>();
     initCamera(wndW, wndH, pCore->camera.get());
 
@@ -104,6 +107,7 @@ void checkFeatureSupports(D3DCore* pCore) {
     UINT _4xMsaaQuality = qualityLevels.NumQualityLevels;
     assert(_4xMsaaQuality > 0);
 
+    // Note the true supported quality level is not equal to the queried quality level.
     pCore->_4xMsaaQuality = _4xMsaaQuality - 1;
 }
 
@@ -142,6 +146,9 @@ void createSwapChain(HWND hWnd, D3DCore* pCore) {
     swapChainDesc.BufferDesc.Format = pCore->swapChainBuffFormat;
     swapChainDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
     swapChainDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+    // DirectX 12 3D does NOT support creating MSAA swap chain.
+    // In classic method, a MSAA swap chain will be resolved automatically during presenting,
+    // which is NOT supported in UWP program. It is recommended to create MSAA render target instead.
     //swapChainDesc.SampleDesc.Count = 4; // 4xMSAA
     //swapChainDesc.SampleDesc.Quality = pCore->_4xMsaaQuality;
     swapChainDesc.SampleDesc.Count = 1;
@@ -162,7 +169,7 @@ void createSwapChain(HWND hWnd, D3DCore* pCore) {
 
 void createRtvDsvHeaps(D3DCore* pCore) {
     D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
-    rtvHeapDesc.NumDescriptors = 2;
+    rtvHeapDesc.NumDescriptors = 3; // 1st and 2nd are swap chain buffers. 3rd is MSAA back buffer.
     rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
     rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
     rtvHeapDesc.NodeMask = 0;
@@ -178,7 +185,26 @@ void createRtvDsvHeaps(D3DCore* pCore) {
         &dsvHeapDesc, IID_PPV_ARGS(&pCore->dsvHeap)));
 }
 
-void createRootSig(D3DCore* pCore) {
+void createRootSig(D3DCore* pCore, const std::string& name, D3D12_ROOT_SIGNATURE_DESC* desc) {
+    ComPtr<ID3DBlob> serializedRootSig = nullptr;
+    ComPtr<ID3DBlob> errorBlob = nullptr;
+    HRESULT hr = D3D12SerializeRootSignature(desc, D3D_ROOT_SIGNATURE_VERSION_1,
+        serializedRootSig.GetAddressOf(), errorBlob.GetAddressOf());
+
+    if (errorBlob != nullptr) {
+        ::OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+    }
+    checkHR(hr);
+
+    checkHR(pCore->device->CreateRootSignature(
+        0,
+        serializedRootSig->GetBufferPointer(),
+        serializedRootSig->GetBufferSize(),
+        IID_PPV_ARGS(&pCore->rootSigs[name])));
+}
+
+void createRootSigs(D3DCore* pCore) {
+    // Main default root signature.
     CD3DX12_ROOT_PARAMETER slotRootParameter[4];
 
     slotRootParameter[0].InitAsConstantBufferView(0);
@@ -193,48 +219,77 @@ void createRootSig(D3DCore* pCore) {
     // A root signature is an array of root parameters.
     CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(4, slotRootParameter, samplers.size(), samplers.data(),
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    createRootSig(pCore, "main", &rootSigDesc);
 
-    // create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
-    ComPtr<ID3DBlob> serializedRootSig = nullptr;
-    ComPtr<ID3DBlob> errorBlob = nullptr;
-    HRESULT hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1,
-        serializedRootSig.GetAddressOf(), errorBlob.GetAddressOf());
+    // Simple computer shader demo root signature.
+    CD3DX12_ROOT_PARAMETER simpleCsDemoRootParameter[3];
 
-    if (errorBlob != nullptr) {
-        ::OutputDebugStringA((char*)errorBlob->GetBufferPointer());
-    }
-    checkHR(hr);
+    simpleCsDemoRootParameter[0].InitAsShaderResourceView(0);
+    simpleCsDemoRootParameter[1].InitAsShaderResourceView(1);
+    simpleCsDemoRootParameter[2].InitAsUnorderedAccessView(0);
 
-    checkHR(pCore->device->CreateRootSignature(
-        0,
-        serializedRootSig->GetBufferPointer(),
-        serializedRootSig->GetBufferSize(),
-        IID_PPV_ARGS(&pCore->rootSig)));
+    CD3DX12_ROOT_SIGNATURE_DESC simpleCsDemoRootSigDesc(3, simpleCsDemoRootParameter, 0, nullptr,
+        D3D12_ROOT_SIGNATURE_FLAG_NONE);
+    createRootSig(pCore, "simple_vec_add_demo", &simpleCsDemoRootSigDesc);
 }
 
 void createShaders(D3DCore* pCore) {
-    pCore->vsByteCode = compileShader(L"shaders/rs.hlsl", nullptr, "VS", "vs_5_0");
-    pCore->psByteCode = compileShader(L"shaders/rs.hlsl", nullptr, "PS", "ps_5_0");
+    pCore->s_default = std::make_unique<Shader>(
+        "default",
+        L"shaders/default.hlsl",
+        Shader::VS | Shader::PS);
+
+    pCore->s_subdivisionGs = std::make_unique<Shader>(
+        "subdivision",
+        L"shaders/subdivision-gs.hlsl",
+        Shader::VS | Shader::GS | Shader::PS);
+
+    pCore->s_billboardGs = std::make_unique<Shader>(
+        "billboard",
+        L"shaders/billboard-gs.hlsl",
+        Shader::VS | Shader::GS | Shader::PS);
+
+    pCore->s_cylinderGeneratorGs = std::make_unique<Shader>(
+        "cylinder_generator",
+        L"shaders/cylinder-generator-gs.hlsl",
+        Shader::VS | Shader::GS | Shader::PS);
+
+    pCore->s_explosionGs = std::make_unique<Shader>(
+        "explosion",
+        L"shaders/explosion-gs.hlsl",
+        Shader::VS | Shader::GS | Shader::PS);
+
+    pCore->s_verNormalVisibleGs = std::make_unique<Shader>(
+        "ver_normal_visible",
+        L"shaders/ver-normal-visible-gs.hlsl",
+        Shader::VS | Shader::GS | Shader::PS);
+
+    pCore->s_triNormalVisibleGs = std::make_unique<Shader>(
+        "tri_normal_visible",
+        L"shaders/tri-normal-visible-gs.hlsl",
+        Shader::VS | Shader::GS | Shader::PS);
+
+    pCore->s_vecAddDemoCs = std::make_unique<Shader>(
+        "simple_vec_add_demo",
+        L"shaders/vec-add-demo-cs.hlsl",
+        Shader::CS);
 }
 
 void createInputLayout(D3DCore* pCore) {
-    pCore->inputLayout = {
+    // SemanticName, SemanticIndex, Format, InputSlot, AlignedByteOffset, InputSlotClass, InstanceDataStepRate
+    pCore->defaultInputLayout = {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 } };
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "SIZE", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 } };
 }
 
 void createPSOs(D3DCore* pCore) {
     // Solid
     D3D12_GRAPHICS_PIPELINE_STATE_DESC solidPsoDesc = {};
-    solidPsoDesc.InputLayout = { pCore->inputLayout.data(), (UINT)pCore->inputLayout.size() };
-    solidPsoDesc.pRootSignature = pCore->rootSig.Get();
-    solidPsoDesc.VS = {
-        reinterpret_cast<BYTE*>(pCore->vsByteCode->GetBufferPointer()),
-        pCore->vsByteCode->GetBufferSize() };
-    solidPsoDesc.PS = {
-        reinterpret_cast<BYTE*>(pCore->psByteCode->GetBufferPointer()),
-        pCore->psByteCode->GetBufferSize() };
+    solidPsoDesc.InputLayout = { pCore->defaultInputLayout.data(), (UINT)pCore->defaultInputLayout.size() };
+    solidPsoDesc.pRootSignature = pCore->rootSigs["main"].Get();
+    bindShaderToPSO(&solidPsoDesc, pCore->s_default.get());
     solidPsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     solidPsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
     solidPsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
@@ -242,10 +297,8 @@ void createPSOs(D3DCore* pCore) {
     solidPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     solidPsoDesc.NumRenderTargets = 1;
     solidPsoDesc.RTVFormats[0] = pCore->swapChainBuffFormat;
-    //psoDesc.SampleDesc.Count = 4; // 4xMSAA
-    //psoDesc.SampleDesc.Quality = pCore->_4xMsaaQuality;
-    solidPsoDesc.SampleDesc.Count = 1;
-    solidPsoDesc.SampleDesc.Quality = 0;
+    solidPsoDesc.SampleDesc.Count = 4; // 4xMSAA
+    solidPsoDesc.SampleDesc.Quality = pCore->_4xMsaaQuality;
     solidPsoDesc.DSVFormat = pCore->depthStencilBuffFormat;
     checkHR(pCore->device->CreateGraphicsPipelineState(&solidPsoDesc, IID_PPV_ARGS(&pCore->PSOs["solid"])));
 
@@ -331,13 +384,56 @@ void createPSOs(D3DCore* pCore) {
     planarShadowDSD.BackFace = planarShadowDSD.FrontFace;
     planarShadowPsoDesc.DepthStencilState = planarShadowDSD;
     checkHR(pCore->device->CreateGraphicsPipelineState(&planarShadowPsoDesc, IID_PPV_ARGS(&pCore->PSOs["planar_shadow"])));
+
+    // Simple Geometry Shader
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC simpleGsPsoDesc = wireframePsoDesc;
+    bindShaderToPSO(&simpleGsPsoDesc, pCore->s_subdivisionGs.get());
+    checkHR(pCore->device->CreateGraphicsPipelineState(&simpleGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["simple_gs"])));
+
+    // Billboard Geometry Shader
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC billboardGsPsoDesc = solidPsoDesc;
+    bindShaderToPSO(&billboardGsPsoDesc, pCore->s_billboardGs.get());
+    billboardGsPsoDesc.BlendState.AlphaToCoverageEnable = true;
+    billboardGsPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+    checkHR(pCore->device->CreateGraphicsPipelineState(&billboardGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["billboard_gs"])));
+
+    // Cylinder Generator Geometry Shader
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC cylinderGeneratorGsPsoDesc = solidPsoDesc;
+    bindShaderToPSO(&cylinderGeneratorGsPsoDesc, pCore->s_cylinderGeneratorGs.get());
+    cylinderGeneratorGsPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+    cylinderGeneratorGsPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+    checkHR(pCore->device->CreateGraphicsPipelineState(&cylinderGeneratorGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["cylinder_generator_gs"])));
+
+    // Explosion Animation Geometry Shader
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC explosionAnimationGsPsoDesc = solidPsoDesc;
+    bindShaderToPSO(&explosionAnimationGsPsoDesc, pCore->s_explosionGs.get());
+    checkHR(pCore->device->CreateGraphicsPipelineState(&explosionAnimationGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["explosion_animation_gs"])));
+
+    // Normal Visible Geometry Shader
+    // Vertex Normal
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC verNormalVisibleGsPsoDesc = solidPsoDesc;
+    bindShaderToPSO(&verNormalVisibleGsPsoDesc, pCore->s_verNormalVisibleGs.get());
+    verNormalVisibleGsPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+    checkHR(pCore->device->CreateGraphicsPipelineState(&verNormalVisibleGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["ver_normal_visible_gs"])));
+    // Triangle Normal
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC triNormalVisibleGsPsoDesc = solidPsoDesc;
+    bindShaderToPSO(&triNormalVisibleGsPsoDesc, pCore->s_triNormalVisibleGs.get());
+    checkHR(pCore->device->CreateGraphicsPipelineState(&triNormalVisibleGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["tri_normal_visible_gs"])));
+
+    // Simple Computer Shader Demo
+    D3D12_COMPUTE_PIPELINE_STATE_DESC simpleVecAddDemoCPsoDesc = {}; // CPso: Compute Pipeline State Object
+    simpleVecAddDemoCPsoDesc.pRootSignature = pCore->rootSigs["simple_vec_add_demo_cs"].Get();
+    bindShaderToCPSO(&simpleVecAddDemoCPsoDesc, pCore->s_vecAddDemoCs.get());
+    simpleVecAddDemoCPsoDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+    // This PSO does not need to be added to render item layers since it will not participate in graphics rendering.
+    pCore->device->CreateComputePipelineState(&simpleVecAddDemoCPsoDesc, IID_PPV_ARGS(&pCore->PSOs["simple_vec_add_demo_cs"]));
 }
 
 void createBasicMaterials(D3DCore* pCore) {
     auto red = std::make_unique<Material>();
     red->name = "red";
     red->matConstBuffIdx = 0;
-    red->texSrvHeapIdx = pCore->textures["default"]->srvHeapIdx;
+    red->texSrvHeapIdx = pCore->textures2d["default"]->srvHeapIdx;
     red->constData.diffuseAlbedo = XMFLOAT4(Colors::Red);
     red->constData.fresnelR0 = { 1.0f, 0.0f, 0.0f };
     red->constData.roughness = 0.0f;
@@ -346,7 +442,7 @@ void createBasicMaterials(D3DCore* pCore) {
     auto green = std::make_unique<Material>();
     green->name = "green";
     green->matConstBuffIdx = 1;
-    green->texSrvHeapIdx = pCore->textures["default"]->srvHeapIdx;
+    green->texSrvHeapIdx = pCore->textures2d["default"]->srvHeapIdx;
     green->constData.diffuseAlbedo = XMFLOAT4(Colors::Green);
     green->constData.fresnelR0 = { 0.0f, 1.0f, 0.0f };
     green->constData.roughness = 0.0f;
@@ -355,7 +451,7 @@ void createBasicMaterials(D3DCore* pCore) {
     auto blue = std::make_unique<Material>();
     blue->name = "blue";
     blue->matConstBuffIdx = 2;
-    blue->texSrvHeapIdx = pCore->textures["default"]->srvHeapIdx;
+    blue->texSrvHeapIdx = pCore->textures2d["default"]->srvHeapIdx;
     blue->constData.diffuseAlbedo = XMFLOAT4(Colors::Blue);
     blue->constData.fresnelR0 = { 0.0f, 0.0f, 1.0f };
     blue->constData.roughness = 0.0f;
@@ -364,7 +460,7 @@ void createBasicMaterials(D3DCore* pCore) {
     auto grass = std::make_unique<Material>();
     grass->name = "grass";
     grass->matConstBuffIdx = 3;
-    grass->texSrvHeapIdx = pCore->textures["grass"]->srvHeapIdx;
+    grass->texSrvHeapIdx = pCore->textures2d["grass"]->srvHeapIdx;
     grass->constData.diffuseAlbedo = { 0.2f, 0.4f, 0.2f, 1.0f };
     grass->constData.fresnelR0 = { 0.001f, 0.001f, 0.001f };
     grass->constData.roughness = 0.8f;
@@ -373,7 +469,7 @@ void createBasicMaterials(D3DCore* pCore) {
     auto water = std::make_unique<Material>();
     water->name = "water";
     water->matConstBuffIdx = 4;
-    water->texSrvHeapIdx = pCore->textures["water"]->srvHeapIdx;
+    water->texSrvHeapIdx = pCore->textures2d["water"]->srvHeapIdx;
     water->constData.diffuseAlbedo = { 0.4f, 0.4f, 0.6f, 0.6f };
     water->constData.fresnelR0 = { 0.1f, 0.1f, 0.1f };
     water->constData.roughness = 0.0f;
@@ -382,7 +478,7 @@ void createBasicMaterials(D3DCore* pCore) {
     auto crate = std::make_unique<Material>();
     crate->name = "crate";
     crate->matConstBuffIdx = 5;
-    crate->texSrvHeapIdx = pCore->textures["crate"]->srvHeapIdx;
+    crate->texSrvHeapIdx = pCore->textures2d["crate"]->srvHeapIdx;
     crate->constData.diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
     crate->constData.fresnelR0 = { 0.01f, 0.01f, 0.01f };
     crate->constData.roughness = 0.4f;
@@ -391,7 +487,7 @@ void createBasicMaterials(D3DCore* pCore) {
     auto fence = std::make_unique<Material>();
     fence->name = "fence";
     fence->matConstBuffIdx = 6;
-    fence->texSrvHeapIdx = pCore->textures["fence"]->srvHeapIdx;
+    fence->texSrvHeapIdx = pCore->textures2d["fence"]->srvHeapIdx;
     fence->constData.diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
     fence->constData.fresnelR0 = { 0.06f, 0.06f, 0.06f };
     fence->constData.roughness = 0.1f;
@@ -400,7 +496,7 @@ void createBasicMaterials(D3DCore* pCore) {
     auto brick = std::make_unique<Material>();
     brick->name = "brick";
     brick->matConstBuffIdx = 7;
-    brick->texSrvHeapIdx = pCore->textures["brick"]->srvHeapIdx;
+    brick->texSrvHeapIdx = pCore->textures2d["brick"]->srvHeapIdx;
     brick->constData.diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
     brick->constData.fresnelR0 = { 0.002f, 0.002f, 0.002f };
     brick->constData.roughness = 0.9f;
@@ -409,7 +505,7 @@ void createBasicMaterials(D3DCore* pCore) {
     auto checkboard = std::make_unique<Material>();
     checkboard->name = "checkboard";
     checkboard->matConstBuffIdx = 8;
-    checkboard->texSrvHeapIdx = pCore->textures["checkboard"]->srvHeapIdx;
+    checkboard->texSrvHeapIdx = pCore->textures2d["checkboard"]->srvHeapIdx;
     checkboard->constData.diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
     checkboard->constData.fresnelR0 = { 0.008f, 0.008f, 0.008f };
     checkboard->constData.roughness = 0.6f;
@@ -418,7 +514,7 @@ void createBasicMaterials(D3DCore* pCore) {
     auto skull = std::make_unique<Material>();
     skull->name = "skull";
     skull->matConstBuffIdx = 9;
-    skull->texSrvHeapIdx = pCore->textures["default"]->srvHeapIdx;
+    skull->texSrvHeapIdx = pCore->textures2d["default"]->srvHeapIdx;
     skull->constData.diffuseAlbedo = { 0.8f, 0.8f, 0.8f, 1.0f };
     skull->constData.fresnelR0 = { 0.003f, 0.003f, 0.003f };
     skull->constData.roughness = 0.7f;
@@ -427,8 +523,8 @@ void createBasicMaterials(D3DCore* pCore) {
     auto mirror = std::make_unique<Material>();
     mirror->name = "mirror";
     mirror->matConstBuffIdx = 10;
-    mirror->texSrvHeapIdx = pCore->textures["default"]->srvHeapIdx;
-    mirror->constData.diffuseAlbedo = { 0.75f, 0.75f, 0.8f, 0.1f };
+    mirror->texSrvHeapIdx = pCore->textures2d["ice"]->srvHeapIdx;
+    mirror->constData.diffuseAlbedo = { 0.75f, 0.75f, 0.8f, 0.3f };
     mirror->constData.fresnelR0 = { 0.5f, 0.5f, 0.5f };
     mirror->constData.roughness = 0.0f;
     pCore->materials[mirror->name] = std::move(mirror);
@@ -436,11 +532,21 @@ void createBasicMaterials(D3DCore* pCore) {
     auto shadow = std::make_unique<Material>();
     shadow->name = "shadow";
     shadow->matConstBuffIdx = 11;
-    shadow->texSrvHeapIdx = pCore->textures["default"]->srvHeapIdx;
+    shadow->texSrvHeapIdx = pCore->textures2d["default"]->srvHeapIdx;
     shadow->constData.diffuseAlbedo = { 0.0f, 0.0f, 0.0f, 0.5f };
     shadow->constData.fresnelR0 = { 0.001f, 0.001f, 0.001f };
     shadow->constData.roughness = 0.0f;
     pCore->materials[shadow->name] = std::move(shadow);
+
+    auto trees = std::make_unique<Material>();
+    trees->name = "trees";
+    trees->matConstBuffIdx = 12;
+    // Note this is a 2D texture array!
+    trees->texSrvHeapIdx = pCore->textures2darray["tree_array"]->srvHeapIdx;
+    trees->constData.diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
+    trees->constData.fresnelR0 = { 0.002f, 0.002f, 0.002f };
+    trees->constData.roughness = 0.6f;
+    pCore->materials[trees->name] = std::move(trees);
 }
 
 void loadBasicTextures(D3DCore* pCore) {
@@ -451,43 +557,56 @@ void loadBasicTextures(D3DCore* pCore) {
     defaultTex->name = "default";
     checkHR(CreateDDSTextureFromFile12(pCore->device.Get(), pCore->cmdList.Get(),
         L"textures/DefaultWhite.dds", defaultTex->resource, defaultTex->uploadHeap));
-    pCore->textures[defaultTex->name] = std::move(defaultTex);
+    pCore->textures2d[defaultTex->name] = std::move(defaultTex);
 
     auto grassTex = std::make_unique<Texture>();
     grassTex->name = "grass";
     checkHR(CreateDDSTextureFromFile12(pCore->device.Get(), pCore->cmdList.Get(),
         L"textures/grass.dds", grassTex->resource, grassTex->uploadHeap));
-    pCore->textures[grassTex->name] = std::move(grassTex);
+    pCore->textures2d[grassTex->name] = std::move(grassTex);
 
     auto waterTex = std::make_unique<Texture>();
     waterTex->name = "water";
     checkHR(CreateDDSTextureFromFile12(pCore->device.Get(), pCore->cmdList.Get(),
         L"textures/water1.dds", waterTex->resource, waterTex->uploadHeap));
-    pCore->textures[waterTex->name] = std::move(waterTex);
+    pCore->textures2d[waterTex->name] = std::move(waterTex);
 
     auto crateTex = std::make_unique<Texture>();
     crateTex->name = "crate";
     checkHR(CreateDDSTextureFromFile12(pCore->device.Get(), pCore->cmdList.Get(),
         L"textures/WoodCrate01.dds", crateTex->resource, crateTex->uploadHeap));
-    pCore->textures[crateTex->name] = std::move(crateTex);
+    pCore->textures2d[crateTex->name] = std::move(crateTex);
 
     auto fenceTex = std::make_unique<Texture>();
     fenceTex->name = "fence";
     checkHR(CreateDDSTextureFromFile12(pCore->device.Get(), pCore->cmdList.Get(),
         L"textures/WireFence.dds", fenceTex->resource, fenceTex->uploadHeap));
-    pCore->textures[fenceTex->name] = std::move(fenceTex);
+    pCore->textures2d[fenceTex->name] = std::move(fenceTex);
 
     auto brickTex = std::make_unique<Texture>();
     brickTex->name = "brick";
     checkHR(CreateDDSTextureFromFile12(pCore->device.Get(), pCore->cmdList.Get(),
         L"textures/bricks3.dds", brickTex->resource, brickTex->uploadHeap));
-    pCore->textures[brickTex->name] = std::move(brickTex);
+    pCore->textures2d[brickTex->name] = std::move(brickTex);
 
     auto checkboardTex = std::make_unique<Texture>();
     checkboardTex->name = "checkboard";
     checkHR(CreateDDSTextureFromFile12(pCore->device.Get(), pCore->cmdList.Get(),
         L"textures/checkboard.dds", checkboardTex->resource, checkboardTex->uploadHeap));
-    pCore->textures[checkboardTex->name] = std::move(checkboardTex);
+    pCore->textures2d[checkboardTex->name] = std::move(checkboardTex);
+
+    auto iceTex = std::make_unique<Texture>();
+    iceTex->name = "ice";
+    checkHR(CreateDDSTextureFromFile12(pCore->device.Get(), pCore->cmdList.Get(),
+        L"textures/ice.dds", iceTex->resource, iceTex->uploadHeap));
+    pCore->textures2d[iceTex->name] = std::move(iceTex);
+
+    auto treeArrayTex = std::make_unique<Texture>();
+    treeArrayTex->name = "tree_array";
+    checkHR(CreateDDSTextureFromFile12(pCore->device.Get(), pCore->cmdList.Get(),
+        L"textures/treearray.dds", treeArrayTex->resource, treeArrayTex->uploadHeap));
+    // Note this is a 2D texture array!
+    pCore->textures2darray[treeArrayTex->name] = std::move(treeArrayTex);
 
     checkHR(pCore->cmdList->Close());
     ID3D12CommandList* cmdLists[] = { pCore->cmdList.Get() };
@@ -496,17 +615,19 @@ void loadBasicTextures(D3DCore* pCore) {
 }
 
 void createDescHeaps(D3DCore* pCore) {
-    // SRV heap
-    D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-    srvHeapDesc.NumDescriptors = pCore->textures.size();
-    srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-    srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-    checkHR(pCore->device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&pCore->srvDescHeap)));
+    // SRV and UAV heap
+    D3D12_DESCRIPTOR_HEAP_DESC srvUavHeapDesc = {};
+    srvUavHeapDesc.NumDescriptors = pCore->textures2d.size() + pCore->textures2darray.size();
+    srvUavHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    srvUavHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    checkHR(pCore->device->CreateDescriptorHeap(&srvUavHeapDesc, IID_PPV_ARGS(&pCore->srvUavHeap)));
 
-    int srvHeapIdx = 0;
-    CD3DX12_CPU_DESCRIPTOR_HANDLE handle(pCore->srvDescHeap->GetCPUDescriptorHandleForHeapStart());
-    for (auto& kv : pCore->textures) {
-        kv.second->srvHeapIdx = srvHeapIdx;
+    int srvUavHeapIdx = 0;
+    CD3DX12_CPU_DESCRIPTOR_HANDLE handle(pCore->srvUavHeap->GetCPUDescriptorHandleForHeapStart());
+
+    // 2D Texture
+    for (auto& kv : pCore->textures2d) {
+        kv.second->srvHeapIdx = srvUavHeapIdx;
         auto tex = kv.second->resource;
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
         srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -514,9 +635,26 @@ void createDescHeaps(D3DCore* pCore) {
         srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
         srvDesc.Texture2D.MostDetailedMip = 0;
         srvDesc.Texture2D.MipLevels = tex->GetDesc().MipLevels;
-        srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+        //srvDesc.Texture2D.ResourceMinLODClamp = 0.0f; // LOD: Level of Detail
         pCore->device->CreateShaderResourceView(tex.Get(), &srvDesc, handle);
-        ++srvHeapIdx;
+        ++srvUavHeapIdx;
+        handle.Offset(1, pCore->cbvSrvUavDescSize);
+    }
+
+    // 2D Texture Array
+    for (auto& kv : pCore->textures2darray) {
+        kv.second->srvHeapIdx = srvUavHeapIdx;
+        auto tex = kv.second->resource;
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srvDesc.Format = tex->GetDesc().Format;
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+        srvDesc.Texture2DArray.MostDetailedMip = 0;
+        srvDesc.Texture2DArray.MipLevels = tex->GetDesc().MipLevels;
+        srvDesc.Texture2DArray.FirstArraySlice = 0;
+        srvDesc.Texture2DArray.ArraySize = tex->GetDesc().DepthOrArraySize;
+        pCore->device->CreateShaderResourceView(tex.Get(), &srvDesc, handle);
+        ++srvUavHeapIdx;
         handle.Offset(1, pCore->cbvSrvUavDescSize);
     }
 }
@@ -567,7 +705,13 @@ void createRenderItemLayers(D3DCore* pCore) {
     // Note the layer names' order cannot be disorganized due to it decides the drawing priority.
     // Simply put, the name in front is drawn first. For example, solid layer is the first to draw.
     std::string ritemLayerNames[] = {
-        "solid", "wireframe", "alpha_test", "stencil_mark", "stencil_reflect", "planar_shadow", "alpha" };
+        // General
+        "solid", "wireframe",
+        // Geometry Shader
+        "simple_gs", "billboard_gs", "cylinder_generator_gs", "explosion_animation_gs",
+        "ver_normal_visible_gs", "tri_normal_visible_gs",
+        // Alpha Blend, Stencil
+        "alpha_test", "stencil_mark", "stencil_reflect", "planar_shadow", "alpha" };
     for (auto& name : ritemLayerNames) {
         pCore->ritemLayers.push_back({ name, std::vector<RenderItem*>() });
     }
@@ -616,7 +760,7 @@ void createFrameResources(D3DCore* pCore) {
     }
 }
 
-void resizeSwapBuffs(int w, int h, D3DCore* pCore) {
+void resizeSwapBuffs(int w, int h, XMFLOAT4 clearColor, D3DCore* pCore) {
     // Flush before changing any resources.
     flushCmdQueue(pCore);
     checkHR(pCore->cmdList->Reset(pCore->cmdAlloc.Get(), nullptr));
@@ -633,6 +777,7 @@ void resizeSwapBuffs(int w, int h, D3DCore* pCore) {
 
     pCore->currBackBuffIdx = 0;
 
+    // Create swap chain buffers.
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(pCore->rtvHeap->GetCPUDescriptorHandleForHeapStart());
     for (int i = 0; i < 2; ++i) {
         checkHR(pCore->swapChain->GetBuffer(i, IID_PPV_ARGS(&pCore->swapChainBuffs[i])));
@@ -640,38 +785,48 @@ void resizeSwapBuffs(int w, int h, D3DCore* pCore) {
         rtvHeapHandle.Offset(1, pCore->rtvDescSize);
     }
 
-    D3D12_RESOURCE_DESC depthStencilDesc;
-    depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-    depthStencilDesc.Alignment = 0;
-    depthStencilDesc.Width = w;
-    depthStencilDesc.Height = h;
-    depthStencilDesc.DepthOrArraySize = 1;
-    depthStencilDesc.MipLevels = 1;
-    depthStencilDesc.Format = pCore->depthStencilBuffFormat;
-    //depthStencilDesc.SampleDesc.Count = 4; // 4xMSAA
-    //depthStencilDesc.SampleDesc.Quality = pCore->_4xMsaaQuality;
-    depthStencilDesc.SampleDesc.Count = 1;
-    depthStencilDesc.SampleDesc.Quality = 0;
-    depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-    depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+    // Create MSAA buffer. It will be resolved and copyed to swap chain buffer to present.
+    D3D12_RESOURCE_DESC renderTargetViewDesc = CD3DX12_RESOURCE_DESC::Tex2D(
+        pCore->swapChainBuffFormat, w, h, 1, 1, 4, pCore->_4xMsaaQuality); // 4xMSAA
+    renderTargetViewDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
-    D3D12_CLEAR_VALUE optimizedClearValue;
-    optimizedClearValue.Format = pCore->depthStencilBuffFormat;
-    optimizedClearValue.DepthStencil.Depth = 1.0f;
-    optimizedClearValue.DepthStencil.Stencil = 0;
+    D3D12_CLEAR_VALUE msaaBuffOptimizedClearValue = {};
+    msaaBuffOptimizedClearValue.Format = pCore->swapChainBuffFormat;
+    memcpy(msaaBuffOptimizedClearValue.Color, &clearColor, sizeof(FLOAT) * 4);
+    pCore->device->CreateCommittedResource(
+        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+        D3D12_HEAP_FLAG_NONE,
+        &renderTargetViewDesc,
+        D3D12_RESOURCE_STATE_RESOLVE_SOURCE,
+        &msaaBuffOptimizedClearValue,
+        IID_PPV_ARGS(&pCore->msaaBackBuff));
+
+    D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+    rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DMS; // MSAA
+    rtvDesc.Format = pCore->swapChainBuffFormat;
+    pCore->device->CreateRenderTargetView(pCore->msaaBackBuff.Get(), &rtvDesc, rtvHeapHandle);
+
+    // Create depth stencil buffer.
+    D3D12_RESOURCE_DESC depthStencilDesc = CD3DX12_RESOURCE_DESC::Tex2D(
+        pCore->depthStencilBuffFormat, w, h, 1, 1, 4, pCore->_4xMsaaQuality); // 4xMSAA
+    depthStencilDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+    D3D12_CLEAR_VALUE dsvOptimizedClearValue;
+    dsvOptimizedClearValue.Format = pCore->depthStencilBuffFormat;
+    dsvOptimizedClearValue.DepthStencil.Depth = 1.0f;
+    dsvOptimizedClearValue.DepthStencil.Stencil = 0;
     checkHR(pCore->device->CreateCommittedResource(
         &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
         D3D12_HEAP_FLAG_NONE,
         &depthStencilDesc,
         D3D12_RESOURCE_STATE_COMMON,
-        &optimizedClearValue,
+        &dsvOptimizedClearValue,
         IID_PPV_ARGS(&pCore->depthStencilBuff)));
 
-    D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
+    D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
     dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
-    dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+    dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DMS; // MSAAs
     dsvDesc.Format = pCore->depthStencilBuffFormat;
-    dsvDesc.Texture2D.MipSlice = 0;
     pCore->device->CreateDepthStencilView(
         pCore->depthStencilBuff.Get(), &dsvDesc, pCore->dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
@@ -688,14 +843,11 @@ void resizeSwapBuffs(int w, int h, D3DCore* pCore) {
     flushCmdQueue(pCore);
 }
 
-void clearBackBuff(XMVECTORF32 color, FLOAT depth, UINT8 stencil, D3DCore* pCore) {
+void clearBackBuff(D3D12_CPU_DESCRIPTOR_HANDLE msaaRtvDescHandle, XMVECTORF32 color,
+    D3D12_CPU_DESCRIPTOR_HANDLE dsvDescHandle, FLOAT depth, UINT8 stencil, D3DCore* pCore)
+{
     pCore->cmdList->ClearRenderTargetView(
-        CD3DX12_CPU_DESCRIPTOR_HANDLE(
-            pCore->rtvHeap->GetCPUDescriptorHandleForHeapStart(),
-            pCore->currBackBuffIdx,
-            pCore->rtvDescSize
-        ), color, 0, nullptr);
+        msaaRtvDescHandle, color, 0, nullptr);
     pCore->cmdList->ClearDepthStencilView(
-        CD3DX12_CPU_DESCRIPTOR_HANDLE(pCore->dsvHeap->GetCPUDescriptorHandleForHeapStart()),
-        D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, depth, stencil, 0, nullptr);
+        dsvDescHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, depth, stencil, 0, nullptr);
 }

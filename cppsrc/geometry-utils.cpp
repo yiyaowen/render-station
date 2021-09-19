@@ -121,6 +121,15 @@ void subdivide(ObjectGeometry* geo) {
     }
 }
 
+void appendVerticesToObjectGeometry(std::vector<Vertex> ver, std::vector<UINT16> idx, ObjectGeometry* objGeo) {
+    UINT count = max(ver.size(), idx.size());
+    for (UINT i = 0; i < count; ++i) {
+        objGeo->vertices.push_back(ver[i]);
+        objGeo->indices.push_back(idx[i]);
+    }
+    objGeo->locationInfo.indexCount += count;
+}
+
 // @ IMPORTANT @ IMPORTANT @ IMPORTANT @ IMPORTANT @ IMPORTANT @ IMPORTANT @ IMPORTANT @
 /*
  * In DX, the forward twist order is set to clockwise by default, i.e. LEFT-handed screw,
@@ -448,4 +457,38 @@ void disturbGridToHill(float hsize, float density, ObjectGeometry* hill) {
 
 float calcHillVertexHeight(float x, float y, float hsize, float density) {
     return hsize * (y * sinf(density* x) + x * cosf(density * y));
+}
+
+void generateCircle2D(XMFLOAT3 center, XMFLOAT3 normal, float radius, UINT n, ObjectGeometry* circle) {
+    auto nor = XMLoadFloat3(&normal);
+    auto xaxis = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+    XMVECTOR firstCross, secondCross;
+    firstCross = XMVector3Cross(nor, xaxis);
+    if (XMVectorGetX(XMVector3LengthSq(firstCross)) < 0.0001f) {
+        // Nearly zero vector, so take X-axis as normal.
+        // Since we only draw a 2D circle the 0 degree and 180 degree are treated the same.
+        firstCross = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+        secondCross = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+    }
+    else {
+        firstCross = XMVector3Normalize(firstCross);
+        secondCross = XMVector3Normalize(XMVector3Cross(firstCross, nor));
+    }
+
+    float theta = XM_2PI / n;
+    circle->vertices.resize(n + 1);
+    circle->indices.resize(n + 1);
+    for (UINT i = 0; i < n; ++i) {
+        auto r = firstCross * cosf(theta * i) + secondCross * sinf(theta * i);
+        XMStoreFloat3(&circle->vertices[i].pos, r * radius + XMLoadFloat3(&center));
+        XMStoreFloat3(&circle->vertices[i].normal, r);
+        circle->indices[i] = i;
+    }
+    // Append first vertex at last manually to make a closed loop.
+    circle->vertices[n] = circle->vertices[0];
+    circle->indices[n] = n;
+
+    circle->locationInfo.indexCount = circle->indices.size();
+    circle->locationInfo.startIndexLocation = 0;
+    circle->locationInfo.baseVertexLocation = 0;
 }

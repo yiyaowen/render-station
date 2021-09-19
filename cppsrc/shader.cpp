@@ -11,6 +11,28 @@
 #include "debugger.h"
 #include "shader.h"
 
+Shader::Shader(const std::string& name, const std::wstring& filename, FUNC_FLAG flags) {
+    initWithHlslFile(name, filename, flags);
+}
+
+void Shader::initWithHlslFile(const std::string& name, const std::wstring& filename, FUNC_FLAG flags) {
+    _name = name;
+    _sourceFilename = filename;
+    _funcFlag = flags;
+    if (flags & VS) {
+        funcs.vs = compileShader(filename, nullptr, "VS", "vs_5_0");
+    }
+    if (flags & GS) {
+        funcs.gs = compileShader(filename, nullptr, "GS", "gs_5_0");
+    }
+    if (flags & PS) {
+        funcs.ps = compileShader(filename, nullptr, "PS", "ps_5_0");
+    }
+    if (flags & CS) {
+        funcs.cs = compileShader(filename, nullptr, "CS", "cs_5_0");
+    }
+}
+
 ComPtr<ID3DBlob> compileShader(const std::wstring& filename, const D3D_SHADER_MACRO* defines,
     const std::string& entrypoint, const std::string& target)
 {
@@ -55,5 +77,23 @@ void XM_CALLCONV updateProcConstsWithReflectMat(FXMMATRIX reflectMat, ProcConsts
         // ---------------------------------------------------------------------------------------------------
         XMVectorSetW(direction, 0.0f); // Make sure the direction is handled as a vector instead of a point.
         XMStoreFloat3(&pData->lights[i].direction, XMVector4Transform(direction, reflectMat));
+    }
+}
+
+void bindShaderToPSO(D3D12_GRAPHICS_PIPELINE_STATE_DESC* pso, Shader* shader) {
+    if (shader->hasVS()) {
+        pso->VS = { reinterpret_cast<BYTE*>(shader->funcs.vs->GetBufferPointer()), shader->funcs.vs->GetBufferSize() };
+    }
+    if (shader->hasGS()) {
+        pso->GS = { reinterpret_cast<BYTE*>(shader->funcs.gs->GetBufferPointer()), shader->funcs.gs->GetBufferSize() };
+    }
+    if (shader->hasPS()) {
+        pso->PS = { reinterpret_cast<BYTE*>(shader->funcs.ps->GetBufferPointer()), shader->funcs.ps->GetBufferSize() };
+    }
+}
+
+void bindShaderToCPSO(D3D12_COMPUTE_PIPELINE_STATE_DESC* cpso, Shader* shader) {
+    if (shader->hasCS()) {
+        cpso->CS = { reinterpret_cast<BYTE*>(shader->funcs.cs->GetBufferPointer()), shader->funcs.cs->GetBufferSize() };
     }
 }

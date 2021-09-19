@@ -40,6 +40,8 @@ void updateVertexNormals(ObjectGeometry* geo);
 // Note this func only changes the vertices and indices data and other data may be dirty.
 void subdivide(ObjectGeometry* geo);
 
+void appendVerticesToObjectGeometry(std::vector<Vertex> ver, std::vector<UINT16> idx, ObjectGeometry* objGeo);
+
 void generateCube(XMFLOAT3 xyz, ObjectGeometry* cube);
 
 void generateCylinder(float topR, float bottomR, float h, UINT sliceCount, UINT stackCount, ObjectGeometry* cylinder);
@@ -60,3 +62,5 @@ void generateGrid(float w, float h, UINT m, UINT n, ObjectGeometry* grid);
 void disturbGridToHill(float hsize, float density, ObjectGeometry* hill);
 
 float calcHillVertexHeight(float x, float y, float hsize, float density);
+
+void generateCircle2D(XMFLOAT3 center, XMFLOAT3 normal, float radius, UINT n, ObjectGeometry* circle);

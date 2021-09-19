@@ -27,3 +27,5 @@ UINT calcConstBuffSize(UINT byteSize);
 
 void createConstBuffPair(D3DCore* pCore, size_t elemSize, UINT elemCount,
     BYTE** ppBuffCPU, ID3D12Resource** ppBuffGPU);
+
+void drawAllRitemsFormatted(D3DCore* pCore, const std::string& psoName, D3D_PRIMITIVE_TOPOLOGY primTopology, Material* mat);

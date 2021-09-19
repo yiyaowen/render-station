@@ -49,7 +49,7 @@ struct RenderItem {
     UINT objConstBuffStartIdx = 0;
     UINT objConstBuffSeatCount = 0;
     std::unique_ptr<Vmesh> mesh = nullptr;
-    D3D12_PRIMITIVE_TOPOLOGY topologyType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+    D3D_PRIMITIVE_TOPOLOGY topologyType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
     // We have material now. Cool! Every material is correspond to one object constants buffer seat in constData.
     std::vector<Material*> materials = {};
     // In general, the multi-objConstBuffSeat serves multi-boundLayer.
