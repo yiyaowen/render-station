@@ -13,3 +13,5 @@ using namespace DirectX;
 XMFLOAT4X4 makeIdentityFloat4x4();
 
 float clampf(float value, float min, float max);
+
+XMVECTOR sphericalToCartesian(float radius, float theta, float phi);

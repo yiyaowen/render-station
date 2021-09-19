@@ -27,8 +27,11 @@ using namespace Microsoft::WRL;
 
 #include "camera.h"
 #include "d3dx12.h"
+#include "frame-async.h"
+#include "material.h"
 #include "math-utils.h"
 #include "shader.h"
+#include "timer.h"
 #include "vmesh.h"
 
 struct D3DCore {
@@ -72,25 +75,14 @@ struct D3DCore {
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     // To render some objects in our scene, these components are needed:
     // CBV: manage constant data passed between program and shaders.
-    // 
     // Constant Buffer, and its mapped buffer in CPU side.
-    // 
     // Root Signature, and we will create it with some root parameters.
-    // 
     // Shader Byte Code, including VS and PS etc.
-    // 
     // Input Layout: works with Root Signature together.
-    // 
     // PSO: Pipeline State Object.
-    // 
     // At last, we create some data structures to help managing object data,
     // and a camera to store the space transformation data.
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ComPtr<ID3D12DescriptorHeap> cbvHeap = nullptr;
-
-    BYTE* objConstBuffCPU = nullptr;
-    ComPtr<ID3D12Resource> objConstBuffGPU = nullptr;
-
     ComPtr<ID3D12RootSignature> rootSig = nullptr;
 
     ComPtr<ID3DBlob> vsByteCode = nullptr;
@@ -100,9 +92,33 @@ struct D3DCore {
 
     std::unordered_map<std::string, ComPtr<ID3D12PipelineState>> PSOs = {};
 
-    std::unordered_map<std::string, std::unique_ptr<Vmesh>> meshes = {};
-
     std::unique_ptr<Camera> camera = nullptr;
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    // We originally use flushCmdQueue to force the CPU to wait for GPU executing
+    // all of the command pushed, since the CPU must update draw-data after
+    // last frame rendered. To avoid this time-consuming sychronization from
+    // happending, a generally used technique is implemented, i.e. Frame Resource.
+    // We also create a new struct to store the data needed to draw a object,
+    // i.e. Render Item, which includes the vertex positions and world matrix etc.
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    int currFrameResourceIdx = 0;
+    FrameResource* currFrameResource = nullptr;
+    std::vector<std::unique_ptr<FrameResource>> frameResources;
+
+    std::vector<std::unique_ptr<RenderItem>> ritems; // ritems: render items
+    std::vector<RenderItem*> solidModeRitems;
+    std::vector<RenderItem*> wireframeModeRitems;
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    // It is a great idea to introduce the conception of material now.
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    std::unordered_map<std::string, std::unique_ptr<Material>> materials;
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    // A well designed timer is important for animation etc.
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    std::unique_ptr<Timer> timer = nullptr;
 };
 
 std::pair<int, int> getWndSize(HWND hWnd);
@@ -115,11 +131,18 @@ void createCmdObjs(D3DCore* pCore);
 void createSwapChain(HWND hWnd, D3DCore* pCore);
 void createRtvDsvHeaps(D3DCore* pCore);
 
-void createDescHeap(D3DCore* pCore);
 void createRootSig(D3DCore* pCore);
 void createShaders(D3DCore* pCore);
 void createInputLayout(D3DCore* pCore);
 void createPSOs(D3DCore* pCore);
+
+void createBasicMaterials(D3DCore* pCore);
+
+void createRenderItems(D3DCore* pCore);
+
+// Note frame resource depends on initialized render items, materials.
+// This func should be called only after these components created.
+void createFrameResources(D3DCore* pCore);
 
 void resizeSwapBuffs(int w, int h, D3DCore* pCore);
 

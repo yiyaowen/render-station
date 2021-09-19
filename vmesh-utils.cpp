@@ -31,6 +31,9 @@ void initVmesh(D3DCore* pCore, const void* vertexData, UINT64 vertexDataSize,
 void createDefaultBuffs(D3DCore* pCore, const void* initData, UINT64 byteSize,
     ID3DBlob** ppBuffCPU, ID3D12Resource** ppBuffGPU, ID3D12Resource** ppUploadBuff)
 {
+    pCore->cmdAlloc->Reset();
+    pCore->cmdList->Reset(pCore->cmdAlloc.Get(), nullptr);
+
     // Create CPU data block.
     checkHR(D3DCreateBlob(byteSize, ppBuffCPU));
     memcpy((*ppBuffCPU)->GetBufferPointer(), initData, byteSize);
@@ -65,4 +68,9 @@ void createDefaultBuffs(D3DCore* pCore, const void* initData, UINT64 byteSize,
     UpdateSubresources<1>(pCore->cmdList.Get(), *ppBuffGPU, *ppUploadBuff, 0, 0, 1, &subResourceData);
     pCore->cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(*ppBuffGPU,
         D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ));
+
+    checkHR(pCore->cmdList->Close());
+    ID3D12CommandList* cmdLists[] = { pCore->cmdList.Get() };
+    pCore->cmdQueue->ExecuteCommandLists(1, cmdLists);
+    flushCmdQueue(pCore);
 }

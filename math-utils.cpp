@@ -20,3 +20,11 @@ XMFLOAT4X4 makeIdentityFloat4x4() {
 float clampf(float value, float min, float max) {
     return value > min ? (value < max ? value : max) : min;
 }
+
+XMVECTOR sphericalToCartesian(float radius, float theta, float phi) {
+    return XMVectorSet(
+        radius * sinf(phi) * cosf(theta),
+        radius * cosf(phi),
+        radius * sinf(phi) * sinf(theta),
+        1.0f);
+}

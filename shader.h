@@ -7,6 +7,8 @@
 */
 #pragma once
 
+#include "light.h"
+
 #include <d3d12.h>
 #include <DirectXMath.h>
 #include <string>
@@ -16,6 +18,18 @@ using namespace Microsoft::WRL;
 
 struct ObjConsts {
     XMFLOAT4X4 worldTrans;
+    XMFLOAT4X4 invTrWorldTrans;
+};
+
+struct ProcConsts {
+    XMFLOAT4X4 viewTrans;
+    XMFLOAT4X4 projTrans;
+
+    XMFLOAT3 eyePosW;
+    float _placeholder;
+
+    XMFLOAT4 ambientLight;
+    Light lights[MAX_LIGHTS];
 };
 
 ComPtr<ID3DBlob> compileShader(const std::wstring& filename, const D3D_SHADER_MACRO* defines,

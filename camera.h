@@ -14,8 +14,9 @@
 struct Camera {
     float x = 0.0f, y = 0.0f, z = 0.0f;
     float radius = 5.0f;
-    float theta = 1.5f * XM_PI;
+    float theta = XM_PIDIV2;
     float phi = XM_PIDIV4;
+    float upY = 1.0f;
     XMFLOAT4X4 viewTrans = makeIdentityFloat4x4();
     XMFLOAT4X4 projTrans = makeIdentityFloat4x4();
 

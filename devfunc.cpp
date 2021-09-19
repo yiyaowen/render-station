@@ -10,116 +10,121 @@
 
 #include "debugger.h"
 #include "devfunc.h"
+#include "frame-async-utils.h"
+#include "render-item-utils.h"
 #include "vmesh-utils.h"
 
-static UINT calcConstBuffSize(UINT byteSize)
-{
-    // Constant buffers must be a multiple of the minimum hardware
-    // allocation size (usually 256 bytes).  So round up to nearest
-    // multiple of 256.  We do this by adding 255 and then masking off
-    // the lower 2 bytes which store all bits < 256.
-    // Example: Suppose byteSize = 300.
-    // (300 + 255) & ~255
-    // 555 & ~255
-    // 0x022B & ~0x00ff
-    // 0x022B & 0xff00
-    // 0x0200
-    // 512
-    return (byteSize + 255) & ~255;
+void dev_initCoreElems(D3DCore* pCore) {
+    // Note the origin render item collection has already included a set of axes (X-Y-Z).
+    // However, the collection can still be cleared if the first 3 axes ritems are handled carefully.
+    //pCore->ritems.clear();
+    auto cubeGeo = std::make_unique<ObjectGeometry>();
+    generateCube(XMFLOAT3(5.0f, 0.3f, 5.0f), XMFLOAT4(DirectX::Colors::Black), cubeGeo.get());
+    translateObjectGeometry(0.0f, -0.6f, 0.0f, cubeGeo.get());
+    auto cube = std::make_unique<RenderItem>();
+    generateCubeEx(pCore, cubeGeo.get(), cube.get());
+    cube->material = pCore->materials["water"].get();
+    pCore->ritems.push_back(std::move(cube));
+
+    auto cylinderGeo = std::make_unique<ObjectGeometry>();
+    generateCylinder(0.6f, 0.8f, 2.5f, 20, 20, XMFLOAT4(DirectX::Colors::Black), cylinderGeo.get());
+    rotateObjectGeometry(-XM_PIDIV2, 0.0f, 0.0f, cylinderGeo.get());
+    translateObjectGeometry(2.0f, 1.2f, 0.0f, cylinderGeo.get());
+    auto cylinder = std::make_unique<RenderItem>();
+    generateCylinderEx(pCore, cylinderGeo.get(), cylinder.get());
+    cylinder->material = pCore->materials["grass"].get();
+    pCore->ritems.push_back(std::move(cylinder));
+
+    pCore->solidModeRitems.clear();
+    for (auto& ritem : pCore->ritems) {
+        pCore->solidModeRitems.push_back(ritem.get());
+    }
+    updateRitemRangeObjConstBuffIdx(pCore->solidModeRitems.data(), pCore->solidModeRitems.size());
+
+    pCore->frameResources.clear();
+    createFrameResources(pCore);
 }
 
-void dev_initCoreElems(D3DCore* pCore) {
-    // Flush command queue and reset command list before change any resource.
-    flushCmdQueue(pCore);
-    pCore->cmdList->Reset(pCore->cmdAlloc.Get(), nullptr);
+void dev_updateCoreObjConsts(D3DCore* pCore) {
+    auto currObjConstBuff = pCore->currFrameResource->objConstBuffCPU;
+    for (auto& ritem : pCore->ritems) {
+        if (ritem->numDirtyFrames > 0) {
+            memcpy(currObjConstBuff + ritem->objConstBuffIdx * calcConstBuffSize(sizeof(ObjConsts)),
+                &ritem->constData, sizeof(ObjConsts));
+            // After each update progress, we decrease numDirtyFrames of the render item.
+            // If numDirtyFrames is still greater than 0, then it will be updated in next update progress.
+            ritem->numDirtyFrames--;
+        }
+    }
+}
 
-    // Create constant buffers and mapped data blocks for target objects.
-    checkHR(pCore->device->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-        D3D12_HEAP_FLAG_NONE,
-        &CD3DX12_RESOURCE_DESC::Buffer(calcConstBuffSize(sizeof(ObjConsts))),
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(&pCore->objConstBuffGPU)));
-    checkHR(pCore->objConstBuffGPU->Map(0, nullptr, reinterpret_cast<void**>(&pCore->objConstBuffCPU)));
+void dev_updateCoreProcConsts(D3DCore* pCore) {
+    ProcConsts constData;
 
-    // Create CBV.
-    D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
-    cbvDesc.BufferLocation = pCore->objConstBuffGPU->GetGPUVirtualAddress();
-    cbvDesc.SizeInBytes = calcConstBuffSize(sizeof(ObjConsts));
-    pCore->device->CreateConstantBufferView(
-        &cbvDesc,
-        pCore->cbvHeap->GetCPUDescriptorHandleForHeapStart());
+    XMMATRIX viewMat = XMLoadFloat4x4(&pCore->camera->viewTrans);
+    XMMATRIX projMat = XMLoadFloat4x4(&pCore->camera->projTrans);
+    XMStoreFloat4x4(&constData.viewTrans, XMMatrixTranspose(viewMat));
+    XMStoreFloat4x4(&constData.projTrans, XMMatrixTranspose(projMat));
 
-    // Create target objects.
-    Vertex vertices[8] =
-    {
-        Vertex({ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::White) }),
-        Vertex({ XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Black) }),
-        Vertex({ XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Red) }),
-        Vertex({ XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::Green) }),
-        Vertex({ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Blue) }),
-        Vertex({ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Yellow) }),
-        Vertex({ XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Cyan) }),
-        Vertex({ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Magenta) })
-    };
+    constData.eyePosW = { 0.0f, 0.0f, 0.0f };
 
-    UINT16 indices[36] =
-    {
-        // front face
-        0, 1, 2,
-        0, 2, 3,
+    constData.ambientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
 
-        // back face
-        4, 6, 5,
-        4, 7, 6,
+    XMVECTOR lightDirection = -sphericalToCartesian(1.0f, XM_PIDIV4, XM_PIDIV4);
+    XMStoreFloat3(&constData.lights[0].direction, lightDirection);
+    constData.lights[0].strength = { 1.0f, 1.0f, 0.9f };
 
-        // left face
-        4, 5, 1,
-        4, 1, 0,
+    memcpy(pCore->currFrameResource->procConstBuffCPU, &constData, sizeof(ProcConsts));
+}
 
-        // right face
-        3, 2, 6,
-        3, 6, 7,
-
-        // top face
-        1, 5, 6,
-        1, 6, 2,
-
-        // bottom face
-        4, 0, 3,
-        4, 3, 7
-    };
-
-    pCore->meshes["main"] = std::make_unique<Vmesh>();
-    initVmesh(pCore, vertices, sizeof(vertices), indices, sizeof(indices), pCore->meshes["main"].get());
-
-    Vsubmesh cube;
-    cube.indexCount = 36;
-    cube.startIndexLocation = 0;
-    cube.baseVertexLocation = 0;
-    pCore->meshes["main"]->objects["cube"] = cube;
-
-    // Wait for all commands to be executed.
-    checkHR(pCore->cmdList->Close());
-    ID3D12CommandList* cmdLists[] = { pCore->cmdList.Get() };
-    pCore->cmdQueue->ExecuteCommandLists(1, cmdLists);
-    flushCmdQueue(pCore);
+void dev_updateCoreMatConsts(D3DCore* pCore) {
+    auto currMatConstBuff = pCore->currFrameResource->matConstBuffCPU;
+    for (auto& mkv : pCore->materials) {
+        auto m = mkv.second.get();
+        if (m->numDirtyFrames > 0) {
+            memcpy(currMatConstBuff + m->matConstBuffIdx * calcConstBuffSize(sizeof(MatConsts)),
+                &m->constData, sizeof(MatConsts));
+            m->numDirtyFrames--;
+        }
+    }
 }
 
 void dev_updateCoreData(D3DCore* pCore) {
-    XMMATRIX viewMat = XMLoadFloat4x4(&pCore->camera->viewTrans);
-    XMMATRIX projMat = XMLoadFloat4x4(&pCore->camera->projTrans);
-    XMMATRIX worldViewProjMat = viewMat * projMat;
+    pCore->currFrameResourceIdx = (pCore->currFrameResourceIdx + 1) % NUM_FRAME_RESOURCES;
+    pCore->currFrameResource = pCore->frameResources[pCore->currFrameResourceIdx].get();
 
-    ObjConsts cubeConsts;
-    XMStoreFloat4x4(&cubeConsts.worldTrans, XMMatrixTranspose(worldViewProjMat));
-    memcpy(pCore->objConstBuffCPU, &cubeConsts, sizeof(cubeConsts));
+    // See end of dev_drawCoreElems, where we update the fence values.
+    // When the fence values are updated, the value of frame resource is equal to the value of main fence.
+    // With GPU processing the commands pushed by CPU, its flag value becomes closer to the main fence value.
+    // If the flag value, i.e. main fence's GetCompletedValue, is less than value of frame resource, it means
+    // that the commands pushed during this frame resource processed have not executed completely yet, and it
+    // is obviously there is no more disengaged frame resource to use, which means we should wait GPU here.
+    if (pCore->currFrameResource->currFenceValue != 0 &&
+        pCore->fence->GetCompletedValue() < pCore->currFrameResource->currFenceValue)
+    {
+        HANDLE hEvent;
+        checkNull(hEvent = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS));
+        // Fire event when GPU reaches current fence.
+        checkHR(pCore->fence->SetEventOnCompletion(pCore->currFenceValue, hEvent));
+        // Wait until the event is triggered.
+        WaitForSingleObject(hEvent, INFINITE);
+        CloseHandle(hEvent);
+    }
+
+    dev_updateCoreObjConsts(pCore);
+    dev_updateCoreProcConsts(pCore);
+    dev_updateCoreMatConsts(pCore);
 }
 
 void dev_drawCoreElems(D3DCore* pCore) {
-    checkHR(pCore->cmdAlloc->Reset());
-    checkHR(pCore->cmdList->Reset(pCore->cmdAlloc.Get(), pCore->PSOs["solid"].Get()));
+    checkHR(pCore->currFrameResource->cmdAlloc->Reset());
+    // If the key is pressed, GetAsyncKeyState returns a SHORT value whose 15th bit is set (starts at 0).
+    if (GetAsyncKeyState('1') & 0x8000) {
+        checkHR(pCore->cmdList->Reset(pCore->currFrameResource->cmdAlloc.Get(), pCore->PSOs["wireframe"].Get()));
+    }
+    else {
+        checkHR(pCore->cmdList->Reset(pCore->currFrameResource->cmdAlloc.Get(), pCore->PSOs["solid"].Get()));
+    }
     
     pCore->cmdList->RSSetViewports(1, &pCore->camera->screenViewport);
     pCore->cmdList->RSSetScissorRects(1, &pCore->camera->scissorRect);
@@ -130,7 +135,7 @@ void dev_drawCoreElems(D3DCore* pCore) {
             D3D12_RESOURCE_STATE_PRESENT,
             D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-    clearBackBuff(Colors::SteelBlue, 1.0f, 0, pCore);
+    clearBackBuff(Colors::LightSteelBlue, 1.0f, 0, pCore);
 
     pCore->cmdList->OMSetRenderTargets(1,
         &CD3DX12_CPU_DESCRIPTOR_HANDLE(
@@ -139,18 +144,12 @@ void dev_drawCoreElems(D3DCore* pCore) {
             pCore->rtvDescSize), true,
         &CD3DX12_CPU_DESCRIPTOR_HANDLE(pCore->dsvHeap->GetCPUDescriptorHandleForHeapStart()));
 
-    ID3D12DescriptorHeap* descHeaps[] = { pCore->cbvHeap.Get() };
-    pCore->cmdList->SetDescriptorHeaps(1, descHeaps);
-
     pCore->cmdList->SetGraphicsRootSignature(pCore->rootSig.Get());
-    pCore->cmdList->SetGraphicsRootDescriptorTable(0, pCore->cbvHeap->GetGPUDescriptorHandleForHeapStart());
 
-    pCore->cmdList->IASetVertexBuffers(0, 1, &pCore->meshes["main"]->vertexBuffView);
-    pCore->cmdList->IASetIndexBuffer(&pCore->meshes["main"]->indexBuffView);
-    pCore->cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    auto procConstBuffAddr = pCore->currFrameResource->procConstBuffGPU->GetGPUVirtualAddress();
+    pCore->cmdList->SetGraphicsRootConstantBufferView(1, procConstBuffAddr);
 
-    Vsubmesh cube = pCore->meshes["main"]->objects["cube"];
-    pCore->cmdList->DrawIndexedInstanced(cube.indexCount, 1, cube.startIndexLocation, cube.baseVertexLocation, 0);
+    drawRenderItems(pCore, pCore->solidModeRitems.data(), pCore->solidModeRitems.size());
 
     pCore->cmdList->ResourceBarrier(1,
         &CD3DX12_RESOURCE_BARRIER::Transition(
@@ -165,7 +164,9 @@ void dev_drawCoreElems(D3DCore* pCore) {
     checkHR(pCore->swapChain->Present(0, 0));
     pCore->currBackBuffIdx = (pCore->currBackBuffIdx + 1) % 2;
 
-    flushCmdQueue(pCore);
+    // We use the following frame resource loop array technique to asynchronize CPU and GPU.
+    pCore->currFrameResource->currFenceValue = ++pCore->currFenceValue;
+    checkHR(pCore->cmdQueue->Signal(pCore->fence.Get(), pCore->currFenceValue));
 }
 
 void dev_onMouseDown(WPARAM btnState, int x, int y, D3DCore* pCore) {
@@ -186,9 +187,9 @@ void dev_onMouseMove(WPARAM btnState, int x, int y, D3DCore* pCore) {
         rotateCamera(-dy, -dx, pCore->camera.get());
     }
     else if ((btnState & MK_MBUTTON) != 0) {
-        //float dx = 0.0001 * (x - pCore->camera->lastMouseX);
-        //float dy = 0.0001 * (y - pCore->camera->lastMouseY);
-        //translateCamera(-dx, dy, 0.0f, pCore->camera.get());
+        float dx = 0.05f * (x - pCore->camera->lastMouseX);
+        float dy = 0.05f * (y - pCore->camera->lastMouseY);
+        translateCamera(-dx, dy, 0.0f, pCore->camera.get());
     }
     else if ((btnState & MK_RBUTTON) != 0) {
         float dy = 0.02f * (float)(y - pCore->camera->lastMouseY);

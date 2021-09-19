@@ -6,8 +6,14 @@
 ** yiyaowen (c) 2021 All Rights Reserved.
 */
 
+#include <DirectXColors.h>
+
 #include "d3dcore.h"
 #include "debugger.h"
+#include "frame-async-utils.h"
+#include "render-item-utils.h"
+#include "timer-utils.h"
+#include "vmesh-utils.h"
 
 std::pair<int, int> getWndSize(HWND hWnd) {
     RECT rect;
@@ -58,8 +64,6 @@ void createD3DCore(HWND hWnd, D3DCore** ppCore) {
 
     createRtvDsvHeaps(pCore);
 
-    createDescHeap(pCore);
-
     createRootSig(pCore);
 
     createShaders(pCore);
@@ -68,9 +72,18 @@ void createD3DCore(HWND hWnd, D3DCore** ppCore) {
 
     createPSOs(pCore);
 
+    createBasicMaterials(pCore);
+
+    createRenderItems(pCore);
+
+    createFrameResources(pCore);
+
     resizeSwapBuffs(wndW, wndH, pCore);
     pCore->camera = std::make_unique<Camera>();
     initCamera(wndW, wndH, pCore->camera.get());
+
+    pCore->timer = std::make_unique<Timer>();
+    initTimer(pCore->timer.get());
 }
 
 void createCmdObjs(D3DCore* pCore) {
@@ -142,25 +155,15 @@ void createRtvDsvHeaps(D3DCore* pCore) {
         &dsvHeapDesc, IID_PPV_ARGS(&pCore->dsvHeap)));
 }
 
-void createDescHeap(D3DCore* pCore) {
-    D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc;
-    cbvHeapDesc.NumDescriptors = 1;
-    cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-    cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-    cbvHeapDesc.NodeMask = 0;
-    checkHR(pCore->device->CreateDescriptorHeap(&cbvHeapDesc,
-        IID_PPV_ARGS(&pCore->cbvHeap)));
-}
-
 void createRootSig(D3DCore* pCore) {
-    CD3DX12_ROOT_PARAMETER slotRootParameter[1];
+    CD3DX12_ROOT_PARAMETER slotRootParameter[3];
 
-    CD3DX12_DESCRIPTOR_RANGE cbvTable;
-    cbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
-    slotRootParameter[0].InitAsDescriptorTable(1, &cbvTable);
+    slotRootParameter[0].InitAsConstantBufferView(0);
+    slotRootParameter[1].InitAsConstantBufferView(1);
+    slotRootParameter[2].InitAsConstantBufferView(2);
 
     // A root signature is an array of root parameters.
-    CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(1, slotRootParameter, 0, nullptr,
+    CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(3, slotRootParameter, 0, nullptr,
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     // create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
@@ -189,7 +192,8 @@ void createShaders(D3DCore* pCore) {
 void createInputLayout(D3DCore* pCore) {
     pCore->inputLayout = {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 } };
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 28, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 } };
 }
 
 void createPSOs(D3DCore* pCore) {
@@ -216,6 +220,86 @@ void createPSOs(D3DCore* pCore) {
 
     psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
     checkHR(pCore->device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pCore->PSOs["wireframe"])));
+}
+
+void createBasicMaterials(D3DCore* pCore) {
+    auto red = std::make_unique<Material>();
+    red->name = "red";
+    red->matConstBuffIdx = 0;
+    red->constData.diffuseAlbedo = XMFLOAT4(Colors::Red);
+    red->constData.fresnelR0 = { 1.0f, 0.0f, 0.0f };
+    red->constData.roughness = 0.0f;
+    pCore->materials["red"] = std::move(red);
+
+    auto green = std::make_unique<Material>();
+    green->name = "green";
+    green->matConstBuffIdx = 1;
+    green->constData.diffuseAlbedo = XMFLOAT4(Colors::Green);
+    green->constData.fresnelR0 = { 0.0f, 1.0f, 0.0f };
+    green->constData.roughness = 0.0f;
+    pCore->materials["green"] = std::move(green);
+
+    auto blue = std::make_unique<Material>();
+    blue->name = "blue";
+    blue->matConstBuffIdx = 2;
+    blue->constData.diffuseAlbedo = XMFLOAT4(Colors::Blue);
+    blue->constData.fresnelR0 = { 0.0f, 0.0f, 1.0f };
+    blue->constData.roughness = 0.0f;
+    pCore->materials["blue"] = std::move(blue);
+
+    auto grass = std::make_unique<Material>();
+    grass->name = "grass";
+    grass->matConstBuffIdx = 3;
+    grass->constData.diffuseAlbedo = { 0.2f, 0.6f, 0.2f, 1.0f };
+    grass->constData.fresnelR0 = { 0.01f, 0.01f, 0.01f };
+    grass->constData.roughness = 0.125f;
+    pCore->materials["grass"] = std::move(grass);
+
+    auto water = std::make_unique<Material>();
+    water->name = "water";
+    water->matConstBuffIdx = 4;
+    water->constData.diffuseAlbedo = { 0.0f, 0.2f, 0.6f, 1.0f };
+    water->constData.fresnelR0 = { 0.1f, 0.1f, 0.1f };
+    water->constData.roughness = 0.0f;
+    pCore->materials["water"] = std::move(water);
+}
+
+void createRenderItems(D3DCore* pCore) {
+    auto xAxisGeo = std::make_unique<ObjectGeometry>();
+    generateCube(XMFLOAT3(100.0f, 0.01f, 0.01f), XMFLOAT4(DirectX::Colors::Red), xAxisGeo.get());
+    auto xAxis = std::make_unique<RenderItem>();
+    generateCubeEx(pCore, xAxisGeo.get(), xAxis.get());
+    xAxis->material = pCore->materials["red"].get();
+    pCore->ritems.push_back(std::move(xAxis));
+
+    auto yAxisGeo = std::make_unique<ObjectGeometry>();
+    generateCube(XMFLOAT3(0.01f, 100.0f, 0.01f), XMFLOAT4(DirectX::Colors::Green), yAxisGeo.get());
+    auto yAxis = std::make_unique<RenderItem>();
+    generateCubeEx(pCore, yAxisGeo.get(), yAxis.get());
+    yAxis->material = pCore->materials["green"].get();
+    pCore->ritems.push_back(std::move(yAxis));
+
+    auto zAxisGeo = std::make_unique<ObjectGeometry>();
+    generateCube(XMFLOAT3(0.01f, 0.01f, 100.0f), XMFLOAT4(DirectX::Colors::Blue), zAxisGeo.get());
+    auto zAxis = std::make_unique<RenderItem>();
+    generateCubeEx(pCore, zAxisGeo.get(), zAxis.get());
+    zAxis->material = pCore->materials["blue"].get();
+    pCore->ritems.push_back(std::move(zAxis));
+
+    for (auto& ritem : pCore->ritems) {
+        pCore->solidModeRitems.push_back(ritem.get());
+    }
+}
+
+void createFrameResources(D3DCore* pCore) {
+    for (int i = 0; i < NUM_FRAME_RESOURCES; ++i) {
+        auto resource = std::make_unique<FrameResource>();
+        initEmptyFrameResource(pCore, resource.get());
+        initFResourceObjConstBuff(pCore, pCore->ritems.size(), resource.get());
+        initFResourceProcConstBuff(pCore, 1, resource.get());
+        initFResourceMatConstBuff(pCore, pCore->materials.size(), resource.get());
+        pCore->frameResources.push_back(std::move(resource));
+    }
 }
 
 void resizeSwapBuffs(int w, int h, D3DCore* pCore) {

@@ -7,10 +7,12 @@
 */
 
 #include <windows.h>
+#include <windowsx.h>
 
 #include "d3dcore.h"
 #include "debugger.h"
 #include "devfunc.h"
+#include "timer-utils.h"
 
 struct RenderWindow {
     HINSTANCE hInstance;
@@ -34,22 +36,24 @@ WNDPROC_SIGNATURE(renderWindowProc) {
         wndW = LOWORD(lParam);
         wndH = HIWORD(lParam);
         if (pRcore != nullptr) {
-            resizeSwapBuffs(wndW, wndH, pRcore);
-            resizeCameraView(wndW, wndH, pRcore->camera.get());
+            if (wParam != SIZE_MINIMIZED) {
+                resizeSwapBuffs(wndW, wndH, pRcore);
+                resizeCameraView(wndW, wndH, pRcore->camera.get());
+            }
         }
         return 0;
     case WM_LBUTTONDOWN:
     case WM_MBUTTONDOWN:
     case WM_RBUTTONDOWN:
-        dev_onMouseDown(wParam, LOWORD(lParam), HIWORD(lParam), pRcore);
+        dev_onMouseDown(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), pRcore);
         return 0;
     case WM_LBUTTONUP:
     case WM_MBUTTONUP:
     case WM_RBUTTONUP:
-        dev_onMouseUp(wParam, LOWORD(lParam), HIWORD(lParam), pRcore);
+        dev_onMouseUp(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), pRcore);
         return 0;
     case WM_MOUSEMOVE:
-        dev_onMouseMove(wParam, LOWORD(lParam), HIWORD(lParam), pRcore);
+        dev_onMouseMove(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), pRcore);
         return 0;
     case WM_DESTROY:
         PostQuitMessage(0);
@@ -102,6 +106,8 @@ int startRenderWindowMsgLoop(RenderWindow* pWnd) {
             DispatchMessage(&msg);
         }
         else {
+            tickTimer(pRcore->timer.get());
+            updateRenderWindowCaptionTimerInfo(pRcore->hWnd, pRcore->timer.get());
             dev_updateCoreData(pRcore);
             dev_drawCoreElems(pRcore);
         }
