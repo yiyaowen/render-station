@@ -112,7 +112,9 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="shaders\rs.hlsl" />
+    <None Include="shaders\default.hlsl" />
     <None Include="shaders\light-utils.hlsl" />
+    <None Include="shaders\subdivision-gs.hlsl" />
+    <None Include="shaders\billboard-gs.hlsl" />
   </ItemGroup>
 </Project>

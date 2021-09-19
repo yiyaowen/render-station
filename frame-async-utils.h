@@ -17,7 +17,11 @@ void initFResourceMatConstBuff(D3DCore* pCore, UINT matBuffCount, FrameResource*
 
 void initEmptyRenderItem(RenderItem* pRitem);
 
-void drawRenderItems(D3DCore* pCore, RenderItem** ppRitem, UINT ritemCount);
+void drawRenderItems(D3DCore* pCore, RenderItem** ppRitem, UINT ritemCount, std::vector<UINT> seatIdxOffsetList);
+
+void drawRenderItemsInLayer(D3DCore* pCore, std::string name, RenderItem** ppRitem, UINT ritemCount);
+
+void drawRitemLayerWithName(D3DCore* pCore, std::string name);
 
 UINT calcConstBuffSize(UINT byteSize);
 

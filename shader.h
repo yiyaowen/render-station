@@ -19,7 +19,7 @@ using namespace Microsoft::WRL;
 
 struct ObjConsts {
     XMFLOAT4X4 worldTrans = makeIdentityFloat4x4();
-    XMFLOAT4X4 invTrWorldTrans = makeIdentityFloat4x4();
+    XMFLOAT4X4 invTrWorldTrans = makeIdentityFloat4x4(); // Tr: Transpose
     XMFLOAT4X4 texTrans = makeIdentityFloat4x4();
 };
 
@@ -37,7 +37,12 @@ struct ProcConsts {
     float fogFallOffStart = 0.0f;
     float fogFallOffEnd = 0.0f;
     XMFLOAT2 _placeholder2;
+
+    XMFLOAT4X4 reflectTrans = makeIdentityFloat4x4();
+    XMFLOAT4X4 invTrReflectTrans = makeIdentityFloat4x4(); // Tr: Transpose
 };
 
 ComPtr<ID3DBlob> compileShader(const std::wstring& filename, const D3D_SHADER_MACRO* defines,
     const std::string& entryPoint, const std::string& target);
+
+void XM_CALLCONV updateProcConstsWithReflectMat(FXMMATRIX reflectMat, ProcConsts* pData);
