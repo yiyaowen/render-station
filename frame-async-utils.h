@@ -1,0 +1,25 @@
+/*
+** Render Station @ https://github.com/yiyaowen/render-station
+**
+** Create fantastic animation and game.
+**
+** yiyaowen (c) 2021 All Rights Reserved.
+*/
+#pragma once
+
+#include "d3dcore.h"
+
+void initEmptyFrameResource(D3DCore* pCore, FrameResource* pResource);
+
+void initFResourceObjConstBuff(D3DCore* pCore, UINT objBuffCount, FrameResource* pResource);
+void initFResourceProcConstBuff(D3DCore* pCore, UINT procBuffCount, FrameResource* pResource);
+void initFResourceMatConstBuff(D3DCore* pCore, UINT matBuffCount, FrameResource* pResource);
+
+void initEmptyRenderItem(RenderItem* pRitem);
+
+void drawRenderItems(D3DCore* pCore, RenderItem** ppRitem, UINT ritemCount);
+
+UINT calcConstBuffSize(UINT byteSize);
+
+void createConstBuffPair(D3DCore* pCore, size_t elemSize, UINT elemCount,
+    BYTE** ppBuffCPU, ID3D12Resource** ppBuffGPU);
