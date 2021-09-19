@@ -227,55 +227,43 @@ void createRootSigs(D3DCore* pCore) {
 void createShaders(D3DCore* pCore) {
     ShaderFuncEntryPoints entryPoint = {};
 
-    pCore->shaders["default"] = std::make_unique<Shader>(
+    pCore->s_default = std::make_unique<Shader>(
         "default",
         L"shaders/basic/default.hlsl",
         Shader::VS | Shader::PS,
         entryPoint);
 
-    pCore->shaders["cartoon"] = std::make_unique<Shader>(
-        "cartoon",
-        L"shaders/basic/cartoon.hlsl",
-        Shader::VS | Shader::PS,
-        entryPoint);
-
-    pCore->shaders["subdivision"] = std::make_unique<Shader>(
+    pCore->s_subdivisionGs = std::make_unique<Shader>(
         "subdivision",
         L"shaders/effects/subdivision-gs.hlsl",
         Shader::VS | Shader::GS | Shader::PS,
         entryPoint);
 
-    pCore->shaders["billboard"] = std::make_unique<Shader>(
+    pCore->s_billboardGs = std::make_unique<Shader>(
         "billboard",
         L"shaders/effects/billboard-gs.hlsl",
         Shader::VS | Shader::GS | Shader::PS,
         entryPoint);
 
-    pCore->shaders["billboard_cartoon"] = std::make_unique<Shader>(
-        "billboard",
-        L"shaders/effects/billboard-cartoon-gs.hlsl",
-        Shader::VS | Shader::GS | Shader::PS,
-        entryPoint);
-
-    pCore->shaders["cylinder_generator"] = std::make_unique<Shader>(
+    pCore->s_cylinderGeneratorGs = std::make_unique<Shader>(
         "cylinder_generator",
         L"shaders/test-demos/cylinder-generator-gs.hlsl",
         Shader::VS | Shader::GS | Shader::PS,
         entryPoint);
 
-    pCore->shaders["explosion"] = std::make_unique<Shader>(
+    pCore->s_explosionGs = std::make_unique<Shader>(
         "explosion",
         L"shaders/effects/explosion-gs.hlsl",
         Shader::VS | Shader::GS | Shader::PS,
         entryPoint);
 
-    pCore->shaders["ver_normal_visible"] = std::make_unique<Shader>(
+    pCore->s_verNormalVisibleGs = std::make_unique<Shader>(
         "ver_normal_visible",
         L"shaders/others/ver-normal-visible-gs.hlsl",
         Shader::VS | Shader::GS | Shader::PS,
         entryPoint);
 
-    pCore->shaders["tri_normal_visible"] = std::make_unique<Shader>(
+    pCore->s_triNormalVisibleGs = std::make_unique<Shader>(
         "tri_normal_visible",
         L"shaders/others/tri-normal-visible-gs.hlsl",
         Shader::VS | Shader::GS | Shader::PS,
@@ -296,7 +284,7 @@ void createPSOs(D3DCore* pCore) {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC solidPsoDesc = {};
     solidPsoDesc.InputLayout = { pCore->defaultInputLayout.data(), (UINT)pCore->defaultInputLayout.size() };
     solidPsoDesc.pRootSignature = pCore->rootSigs["main"].Get();
-    bindShaderToPSO(&solidPsoDesc, pCore->shaders["default"].get());
+    bindShaderToPSO(&solidPsoDesc, pCore->s_default.get());
     solidPsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     solidPsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
     solidPsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
@@ -309,11 +297,6 @@ void createPSOs(D3DCore* pCore) {
     solidPsoDesc.DSVFormat = pCore->depthStencilBuffFormat;
     checkHR(pCore->device->CreateGraphicsPipelineState(&solidPsoDesc, IID_PPV_ARGS(&pCore->PSOs["solid"])));
 
-    // Cartoon
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC cartoonPsoDesc = solidPsoDesc;
-    bindShaderToPSO(&cartoonPsoDesc, pCore->shaders["cartoon"].get());
-    checkHR(pCore->device->CreateGraphicsPipelineState(&cartoonPsoDesc, IID_PPV_ARGS(&pCore->PSOs["cartoon"])));
-
     // Wireframe
     D3D12_GRAPHICS_PIPELINE_STATE_DESC wireframePsoDesc = solidPsoDesc;
     wireframePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
@@ -323,9 +306,6 @@ void createPSOs(D3DCore* pCore) {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC alphaTestPsoDesc = solidPsoDesc;
     alphaTestPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
     checkHR(pCore->device->CreateGraphicsPipelineState(&alphaTestPsoDesc, IID_PPV_ARGS(&pCore->PSOs["alpha_test"])));
-    // Alpha Test in Cartoon Style
-    bindShaderToPSO(&alphaTestPsoDesc, pCore->shaders["cartoon"].get());
-    checkHR(pCore->device->CreateGraphicsPipelineState(&alphaTestPsoDesc, IID_PPV_ARGS(&pCore->PSOs["alpha_test_cartoon"])));
 
     // Alpha
     D3D12_GRAPHICS_PIPELINE_STATE_DESC alphaPsoDesc = solidPsoDesc;
@@ -336,9 +316,6 @@ void createPSOs(D3DCore* pCore) {
     alphaRTBD.BlendOp = D3D12_BLEND_OP_ADD;
     alphaPsoDesc.BlendState.RenderTarget[0] = alphaRTBD;
     checkHR(pCore->device->CreateGraphicsPipelineState(&alphaPsoDesc, IID_PPV_ARGS(&pCore->PSOs["alpha"])));
-    // Alpha in Cartoon Style
-    bindShaderToPSO(&alphaPsoDesc, pCore->shaders["cartoon"].get());
-    checkHR(pCore->device->CreateGraphicsPipelineState(&alphaPsoDesc, IID_PPV_ARGS(&pCore->PSOs["alpha_cartoon"])));
 
     // Stencil Mark:
     // Keep the render target buffer and depth buffer intact and always mark the stencil buffer (stencil test will always passes).
@@ -405,41 +382,38 @@ void createPSOs(D3DCore* pCore) {
 
     // Subdivision Geometry Shader
     D3D12_GRAPHICS_PIPELINE_STATE_DESC subdivisionGsPsoDesc = wireframePsoDesc;
-    bindShaderToPSO(&subdivisionGsPsoDesc, pCore->shaders["subdivision"].get());
-    checkHR(pCore->device->CreateGraphicsPipelineState(&subdivisionGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["subdivision"])));
+    bindShaderToPSO(&subdivisionGsPsoDesc, pCore->s_subdivisionGs.get());
+    checkHR(pCore->device->CreateGraphicsPipelineState(&subdivisionGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["subdivision_gs"])));
 
     // Billboard Geometry Shader
     D3D12_GRAPHICS_PIPELINE_STATE_DESC billboardGsPsoDesc = solidPsoDesc;
-    bindShaderToPSO(&billboardGsPsoDesc, pCore->shaders["billboard"].get());
+    bindShaderToPSO(&billboardGsPsoDesc, pCore->s_billboardGs.get());
     billboardGsPsoDesc.BlendState.AlphaToCoverageEnable = true;
     billboardGsPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
-    checkHR(pCore->device->CreateGraphicsPipelineState(&billboardGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["billboard"])));
-    // Billboard Geometry Shader in Cartoon Style
-    bindShaderToPSO(&billboardGsPsoDesc, pCore->shaders["billboard_cartoon"].get());
-    checkHR(pCore->device->CreateGraphicsPipelineState(&billboardGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["billboard_cartoon"])));
+    checkHR(pCore->device->CreateGraphicsPipelineState(&billboardGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["billboard_gs"])));
 
     // Cylinder Generator Geometry Shader
     D3D12_GRAPHICS_PIPELINE_STATE_DESC cylinderGeneratorGsPsoDesc = solidPsoDesc;
-    bindShaderToPSO(&cylinderGeneratorGsPsoDesc, pCore->shaders["cylinder_generator"].get());
+    bindShaderToPSO(&cylinderGeneratorGsPsoDesc, pCore->s_cylinderGeneratorGs.get());
     cylinderGeneratorGsPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
     cylinderGeneratorGsPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-    checkHR(pCore->device->CreateGraphicsPipelineState(&cylinderGeneratorGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["cylinder_generator"])));
+    checkHR(pCore->device->CreateGraphicsPipelineState(&cylinderGeneratorGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["cylinder_generator_gs"])));
 
     // Explosion Animation Geometry Shader
     D3D12_GRAPHICS_PIPELINE_STATE_DESC explosionAnimationGsPsoDesc = solidPsoDesc;
-    bindShaderToPSO(&explosionAnimationGsPsoDesc, pCore->shaders["explosion"].get());
-    checkHR(pCore->device->CreateGraphicsPipelineState(&explosionAnimationGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["explosion_animation"])));
+    bindShaderToPSO(&explosionAnimationGsPsoDesc, pCore->s_explosionGs.get());
+    checkHR(pCore->device->CreateGraphicsPipelineState(&explosionAnimationGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["explosion_animation_gs"])));
 
     // Normal Visible Geometry Shader
     // Vertex Normal
     D3D12_GRAPHICS_PIPELINE_STATE_DESC verNormalVisibleGsPsoDesc = solidPsoDesc;
-    bindShaderToPSO(&verNormalVisibleGsPsoDesc, pCore->shaders["ver_normal_visible"].get());
+    bindShaderToPSO(&verNormalVisibleGsPsoDesc, pCore->s_verNormalVisibleGs.get());
     verNormalVisibleGsPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
-    checkHR(pCore->device->CreateGraphicsPipelineState(&verNormalVisibleGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["ver_normal_visible"])));
+    checkHR(pCore->device->CreateGraphicsPipelineState(&verNormalVisibleGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["ver_normal_visible_gs"])));
     // Triangle Normal
     D3D12_GRAPHICS_PIPELINE_STATE_DESC triNormalVisibleGsPsoDesc = solidPsoDesc;
-    bindShaderToPSO(&triNormalVisibleGsPsoDesc, pCore->shaders["tri_normal_visible"].get());
-    checkHR(pCore->device->CreateGraphicsPipelineState(&triNormalVisibleGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["tri_normal_visible"])));
+    bindShaderToPSO(&triNormalVisibleGsPsoDesc, pCore->s_triNormalVisibleGs.get());
+    checkHR(pCore->device->CreateGraphicsPipelineState(&triNormalVisibleGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["tri_normal_visible_gs"])));
 }
 
 void createBasicMaterials(D3DCore* pCore) {
@@ -719,14 +693,12 @@ void createRenderItemLayers(D3DCore* pCore) {
     // Simply put, the name in front is drawn first. For example, solid layer is the first to draw.
     std::string ritemLayerNames[] = {
         // General
-        "solid", "cartoon", "wireframe",
+        "solid", "wireframe",
         // Geometry Shader
-        "subdivision", "billboard", "billboard_cartoon", "cylinder_generator", "explosion_animation",
-        "ver_normal_visible", "tri_normal_visible",
+        "subdivision_gs", "billboard_gs", "cylinder_generator_gs", "explosion_animation_gs",
+        "ver_normal_visible_gs", "tri_normal_visible_gs",
         // Alpha Blend, Stencil
-        "alpha_test", "alpha_test_cartoon", "stencil_mark", "stencil_reflect", "planar_shadow",
-        "alpha", "alpha_cartoon"
-    };
+        "alpha_test", "stencil_mark", "stencil_reflect", "planar_shadow", "alpha" };
     for (auto& name : ritemLayerNames) {
         pCore->ritemLayers.push_back({ name, std::vector<RenderItem*>() });
     }

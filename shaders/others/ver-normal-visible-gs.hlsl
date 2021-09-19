@@ -138,7 +138,7 @@ float4 PS(GeoOut pin) : SV_Target
 
 	const float shininess = 1.0f - gRoughness;
 	Material mat = { diffuseAlbedo, gFresnelR0, shininess };
-	float4 litColor = { calcAllLightsPhysicsBased(gLights, pin.posW, pin.normalW, eyeVecW, mat), 0.0f };
+	float4 litColor = { calcAllLights(gLights, pin.posW, pin.normalW, eyeVecW, mat), 0.0f };
 	litColor += ambient;
 
 	// Simulate the effect of fog.

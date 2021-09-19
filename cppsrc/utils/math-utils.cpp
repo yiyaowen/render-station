@@ -6,8 +6,6 @@
 ** yiyaowen (c) 2021 All Rights Reserved.
 */
 
-#include <time.h>
-
 #include "math-utils.h"
 
 XMFLOAT4X4 makeIdentityFloat4x4() {
@@ -77,12 +75,4 @@ std::vector<float> calcGaussianBlurWeight(uint8_t blurRadius, float blurGrade) {
     }
 
     return weights;
-}
-
-int randint(int min, int max) {
-    return rand() % (max - min + 1) + min;
-}
-
-float rand01() {
-    return rand() / (float)(RAND_MAX);
 }

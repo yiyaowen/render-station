@@ -22,7 +22,3 @@ XMVECTOR sphericalToCartesianDX(float radius, float theta, float phi);
 XMVECTOR sphericalToCartesianRH(float radius, float theta, float phi);
 
 std::vector<float> calcGaussianBlurWeight(uint8_t blurRadius, float blurGrade);
-
-int randint(int min, int max);
-
-float rand01();

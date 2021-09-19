@@ -29,26 +29,26 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -78,8 +78,6 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\Program Files %28x86%29\Windows Kits\10\Include\10.0.19041.0\ucrt;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Program Files %28x86%29\Windows Kits\10\Lib\10.0.19041.0\ucrt\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -185,7 +183,6 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="cppsrc\postprocessing\bilateral-blur.cpp" />
     <ClCompile Include="cppsrc\postprocessing\basic-process.cpp" />
     <ClCompile Include="cppsrc\widgets\camera.cpp" />
     <ClCompile Include="cppsrc\d3dcore\d3dcore.cpp" />
@@ -195,14 +192,13 @@
     <ClCompile Include="cppsrc\utils\geometry-utils.cpp" />
     <ClCompile Include="cppsrc\example\main.cpp" />
     <ClCompile Include="cppsrc\utils\math-utils.cpp" />
-    <ClCompile Include="cppsrc\postprocessing\gaussian-blur.cpp" />
+    <ClCompile Include="cppsrc\postprocessing\blur-filter.cpp" />
     <ClCompile Include="cppsrc\utils\render-item-utils.cpp" />
     <ClCompile Include="cppsrc\graphics\shader.cpp" />
     <ClCompile Include="cppsrc\utils\timer-utils.cpp" />
     <ClCompile Include="cppsrc\utils\vmesh-utils.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="cppsrc\postprocessing\bilateral-blur.h" />
     <ClInclude Include="cppsrc\postprocessing\basic-process.h" />
     <ClInclude Include="cppsrc\widgets\camera.h" />
     <ClInclude Include="cppsrc\d3dcore\d3dcore.h" />
@@ -216,7 +212,7 @@
     <ClInclude Include="cppsrc\graphics\light.h" />
     <ClInclude Include="cppsrc\graphics\material.h" />
     <ClInclude Include="cppsrc\utils\math-utils.h" />
-    <ClInclude Include="cppsrc\postprocessing\gaussian-blur.h" />
+    <ClInclude Include="cppsrc\postprocessing\blur-filter.h" />
     <ClInclude Include="cppsrc\utils\render-item-utils.h" />
     <ClInclude Include="cppsrc\graphics\shader.h" />
     <ClInclude Include="cppsrc\graphics\texture.h" />
@@ -232,31 +228,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\postprocessing\gaussian-blur.hlsl">
-      <FileType>Document</FileType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="shaders\basic\cartoon.hlsl">
-      <FileType>Document</FileType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="shaders\effects\billboard-cartoon-gs.hlsl">
-      <FileType>Document</FileType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="shaders\test-demos\vec-length-demo-cs.hlsl">
-      <FileType>Document</FileType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="shaders\postprocessing\bilateral-blur-sdf.hlsl">
-      <FileType>Document</FileType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="shaders\postprocessing\bilateral-blur.hlsl">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

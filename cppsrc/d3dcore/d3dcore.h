@@ -79,7 +79,17 @@ struct D3DCore {
     // Shader Objects
     std::unordered_map<std::string, ComPtr<ID3D12RootSignature>> rootSigs = {};
 
-    std::unordered_map<std::string, std::unique_ptr<Shader>> shaders = {};
+    // General Shaders
+    std::unique_ptr<Shader> s_default = nullptr;
+    // Effects Geometry Shaders
+    std::unique_ptr<Shader> s_subdivisionGs = nullptr;
+    std::unique_ptr<Shader> s_billboardGs = nullptr;
+    std::unique_ptr<Shader> s_cylinderGeneratorGs = nullptr;
+    std::unique_ptr<Shader> s_explosionGs = nullptr;
+    std::unique_ptr<Shader> s_verNormalVisibleGs = nullptr;
+    std::unique_ptr<Shader> s_triNormalVisibleGs = nullptr;
+    // Computer Shaders
+    std::unique_ptr<Shader> s_vecAddDemoCs = nullptr;
 
     std::vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout = {};
 
@@ -101,6 +111,7 @@ struct D3DCore {
     std::unordered_map<std::string, std::unique_ptr<Texture>> textures2d = {};
     std::unordered_map<std::string, std::unique_ptr<Texture>> textures2darray = {};
     ComPtr<ID3D12DescriptorHeap> srvUavHeap = nullptr;
+    ComPtr<ID3D12DescriptorHeap> uavDescHeap = nullptr;
 
     // Widgets
     std::unique_ptr<Camera> camera = nullptr;

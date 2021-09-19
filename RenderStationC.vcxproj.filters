@@ -25,11 +25,6 @@
     <None Include="shaders\others\tri-normal-visible-gs.hlsl" />
     <None Include="shaders\test-demos\vec-add-demo-cs.hlsl" />
     <None Include="shaders\postprocessing\gaussian-blur.hlsl" />
-    <None Include="shaders\basic\cartoon.hlsl" />
-    <None Include="shaders\effects\billboard-cartoon-gs.hlsl" />
-    <None Include="shaders\test-demos\vec-length-demo-cs.hlsl" />
-    <None Include="shaders\postprocessing\bilateral-blur-sdf.hlsl" />
-    <None Include="shaders\postprocessing\bilateral-blur.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cppsrc\widgets\camera.cpp">
@@ -68,13 +63,10 @@
     <ClCompile Include="cppsrc\utils\vmesh-utils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="cppsrc\postprocessing\gaussian-blur.cpp">
+    <ClCompile Include="cppsrc\postprocessing\blur-filter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="cppsrc\postprocessing\basic-process.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="cppsrc\postprocessing\bilateral-blur.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -136,13 +128,10 @@
     <ClInclude Include="cppsrc\utils\vmesh-utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="cppsrc\postprocessing\gaussian-blur.h">
+    <ClInclude Include="cppsrc\postprocessing\blur-filter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="cppsrc\postprocessing\basic-process.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="cppsrc\postprocessing\bilateral-blur.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

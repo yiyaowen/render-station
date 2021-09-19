@@ -10,8 +10,7 @@
 #include <fstream>
 
 #include "devfunc.h"
-#include "postprocessing/bilateral-blur.h"
-#include "postprocessing/gaussian-blur.h"
+#include "postprocessing/blur-filter.h"
 #include "utils/debugger.h"
 #include "utils/frame-async-utils.h"
 #include "utils/render-item-utils.h"
@@ -66,15 +65,15 @@ void dev_initCoreElems(D3DCore* pCore) {
     trees->topologyType = D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
     trees->materials = { pCore->materials["trees"].get() };
     moveNamedRitemToAllRitems(pCore, "trees", std::move(trees));
-    bindRitemReferenceWithLayers(pCore, "trees", { {"billboard", 0} });
+    bindRitemReferenceWithLayers(pCore, "trees", { {"billboard_gs", 0} });
 
     updateRitemRangeObjConstBuffIdx(pCore->allRitems.data(), pCore->allRitems.size());
 
     pCore->frameResources.clear();
     createFrameResources(pCore);
 
-    pCore->postprocessors["gaussian_blur"] = std::make_unique<GaussianBlur>(pCore, 5, 256.0f, 1);
-    pCore->postprocessors["bilateral_blur"] = std::make_unique<BilateralBlur>(pCore, 5, 256.0f, 0.1f, 1);
+    // Create gaussian blur postprocessor.
+    pCore->postprocessors["gaussian_blur"] = std::make_unique<BlurFilter>(pCore, 5, 12.0f, 2);
 
     // Init all created postprocessors.
     for (auto p = pCore->postprocessors.begin(); p != pCore->postprocessors.end(); ++p)
@@ -200,14 +199,14 @@ void dev_drawCoreElems(D3DCore* pCore) {
     // Firstly draw all objects on MSAA back buffer.
     clearBackBuff(msaaRtvDescHandle, Colors::SkyBlue, dsvDescHanlde, 1.0f, 0, pCore);
     drawRitemLayerWithName(pCore, "solid");
-    drawRitemLayerWithName(pCore, "billboard");
+    drawRitemLayerWithName(pCore, "billboard_gs");
+    drawRitemLayerWithName(pCore, "wireframe");
     drawRitemLayerWithName(pCore, "alpha_test");
     drawRitemLayerWithName(pCore, "alpha");
 
     ID3D12Resource* processedOutput = nullptr;
     processedOutput = pCore->postprocessors["basic"]->process(pCore->msaaBackBuff.Get());
-    //processedOutput = pCore->postprocessors["gaussian_blur"]->process(processedOutput);
-    processedOutput = pCore->postprocessors["bilateral_blur"]->process(processedOutput);
+    processedOutput = pCore->postprocessors["gaussian_blur"]->process(processedOutput);
 
     // Write final processed output into swap chain back buffer.
     copyStatedResource(pCore,

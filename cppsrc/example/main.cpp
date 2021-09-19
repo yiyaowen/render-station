@@ -7,7 +7,6 @@
 */
 
 #include <DirectXColors.h>
-#include <time.h>
 #include <windows.h>
 #include <windowsx.h>
 
@@ -128,7 +127,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         debugController->EnableDebugLayer();
     }
 #endif
-    srand(time(nullptr));
     createRenderWindow(hInstance, &pRwnd);
     createD3DCore(pRwnd->hMainWnd, XMFLOAT4(DirectX::Colors::SkyBlue), &pRcore);
     startRenderWindowMsgLoop(pRwnd);
