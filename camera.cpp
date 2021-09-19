@@ -34,7 +34,7 @@ void rotateCamera(float dphi, float dtheta, Camera* pCamera) {
 }
 
 void zoomCamera(float dr, Camera* pCamera) {
-    pCamera->radius = clampf(pCamera->radius + dr, 3.0f, 60.0f);
+    pCamera->radius = clampf(pCamera->radius + dr, 3.0f, 20.0f);
     updateCameraViewTrans(pCamera);
 }
 

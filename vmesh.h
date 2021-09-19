@@ -19,7 +19,6 @@ struct Vertex {
     XMFLOAT3 pos = { 0.0f, 0.0f, 0.0f };
     XMFLOAT3 normal = { 0.0f, 0.0f, 0.0f };
     XMFLOAT2 uv = { 0.0f, 0.0f };
-    XMFLOAT2 size = { 0.0f, 0.0f }; // Only used for billboard technique. (generate vertices by geometry shader)
 };
 
 struct Vsubmesh {

@@ -22,78 +22,27 @@ void dev_initCoreElems(D3DCore* pCore) {
 
     auto boxGeo = std::make_unique<ObjectGeometry>();
     generateCube(XMFLOAT3(1.0f, 1.0f, 1.0f), boxGeo.get());
-    translateObjectGeometry(-4.0f, 0.0f, 0.0f, boxGeo.get());
     auto box = std::make_unique<RenderItem>();
-    initRitemWithGeoInfo(pCore, boxGeo.get(), 1, box.get());
-    box->materials = { pCore->materials["fence"].get() };
-    moveNamedRitemToAllRitems(pCore, "box", std::move(box));
-    bindRitemReferenceWithLayers(pCore, "box", { {"alpha_test", 0} });
+    initRitemWithGeoInfo(pCore, boxGeo.get(), box.get());
+    box->material = pCore->materials["crate"].get();
+    pCore->ritems.push_back(std::move(box));
 
-    auto hillGeo = std::make_unique<ObjectGeometry>();
-    generateGrid(200.0f, 200.0f, 100, 100, hillGeo.get());
-    disturbGridToHill(0.2f, 0.2f, hillGeo.get());
-    rotateObjectGeometry(-XM_PIDIV2, 0.0f, 0.0f, hillGeo.get());
-    auto hill = std::make_unique<RenderItem>();
-    initRitemWithGeoInfo(pCore, hillGeo.get(), 1, hill.get());
-    hill->materials = { pCore->materials["grass"].get() };
-    moveNamedRitemToAllRitems(pCore, "hill", std::move(hill));
-    bindRitemReferenceWithLayers(pCore, "hill", { {"solid", 0} });
-
-    auto lakeGeo = std::make_unique<ObjectGeometry>();
-    generateGrid(200.0f, 200.0f, 100, 100, lakeGeo.get());
-    rotateObjectGeometry(-XM_PIDIV2, 0.0f, 0.0f, lakeGeo.get());
-    translateObjectGeometry(0.0f, -0.2f, 0.0f, lakeGeo.get());
-    auto lake = std::make_unique<RenderItem>();
-    initRitemWithGeoInfo(pCore, lakeGeo.get(), 1, lake.get());
-    lake->materials = { pCore->materials["water"].get() };
-    moveNamedRitemToAllRitems(pCore, "lake", std::move(lake));
-    bindRitemReferenceWithLayers(pCore, "lake", { {"alpha", 0} });
-
-    auto treesGeo = std::make_unique<ObjectGeometry>();
-    appendVerticesToObjectGeometry(
-        {
-            { {3.0f, 7.0f, -6.0f}, {}, {}, { 14.0f, 14.0f } },
-            { {8.0f, 9.5f, -18.0f}, {}, {}, { 19.0f, 19.0f } },
-            { {-6.0f, 8.8f, 7.0f}, {}, {}, { 17.6f, 17.6f } },
-            { { -17.0f, 10.0f, -12.0f}, {}, {}, {20.0f, 20.0f} }
-        },
-        { 0, 1, 2, 3 }, treesGeo.get());
-    auto trees = std::make_unique<RenderItem>();
-    initRitemWithGeoInfo(pCore, treesGeo.get(), 1, trees.get());
-    // Pass the point to geometry shader and then the shader will generate 4 new points from the point passed.
-    trees->topologyType = D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
-    trees->materials = { pCore->materials["trees"].get() };
-    moveNamedRitemToAllRitems(pCore, "trees", std::move(trees));
-    bindRitemReferenceWithLayers(pCore, "trees", { {"billboard_gs", 0} });
-
-    updateRitemRangeObjConstBuffIdx(pCore->allRitems.data(), pCore->allRitems.size());
+    pCore->solidModeRitems.clear();
+    for (auto& ritem : pCore->ritems) {
+        pCore->solidModeRitems.push_back(ritem.get());
+    }
+    updateRitemRangeObjConstBuffIdx(pCore->solidModeRitems.data(), pCore->solidModeRitems.size());
 
     pCore->frameResources.clear();
     createFrameResources(pCore);
 }
 
 void dev_updateCoreObjConsts(D3DCore* pCore) {
-    XMStoreFloat4x4(&pCore->ritems["hill"]->constData[0].texTrans,
-        XMMatrixTranspose(XMMatrixScaling(40.0f, 40.0f, 1.0f)));
-
-    float timeArg = pCore->timer->elapsedSecs;
-    auto lakeTexScaleMat = XMMatrixScaling(6.0f, 6.0f, 1.0f);
-    auto lakeTexTransMat = XMMatrixTranslation(timeArg * 0.01f, timeArg * 0.002f, 0.0f);
-    auto lakeTexMat = lakeTexTransMat * lakeTexScaleMat;
-    XMStoreFloat4x4(&pCore->ritems["lake"]->constData[0].texTrans,
-        XMMatrixTranspose(lakeTexMat));
-    pCore->ritems["lake"]->numDirtyFrames = NUM_FRAME_RESOURCES;
-
-    // Apply updates.
     auto currObjConstBuff = pCore->currFrameResource->objConstBuffCPU;
-    for (auto& kv : pCore->ritems) {
-        auto& ritem = kv.second;
+    for (auto& ritem : pCore->ritems) {
         if (ritem->numDirtyFrames > 0) {
-            // Every seat should be updated.
-            for (UINT i = 0; i < ritem->objConstBuffSeatCount; ++i) {
-                memcpy(currObjConstBuff + (ritem->objConstBuffStartIdx + i) * calcConstBuffSize(sizeof(ObjConsts)),
-                    &ritem->constData[i], sizeof(ObjConsts));
-            }
+            memcpy(currObjConstBuff + ritem->objConstBuffIdx * calcConstBuffSize(sizeof(ObjConsts)),
+                &ritem->constData, sizeof(ObjConsts));
             // After each update progress, we decrease numDirtyFrames of the render item.
             // If numDirtyFrames is still greater than 0, then it will be updated in next update progress.
             ritem->numDirtyFrames--;
@@ -119,16 +68,10 @@ void dev_updateCoreProcConsts(D3DCore* pCore) {
     XMStoreFloat3(&constData.lights[0].direction, lightDirection);
     constData.lights[0].strength = { 1.0f, 1.0f, 0.9f };
 
-    constData.fogColor = XMFLOAT4(DirectX::Colors::SkyBlue);
-    constData.fogFallOffStart = 20.0f;
-    constData.fogFallOffEnd = 80.0f;
-
-    // Apply updates.
     memcpy(pCore->currFrameResource->procConstBuffCPU, &constData, sizeof(ProcConsts));
 }
 
 void dev_updateCoreMatConsts(D3DCore* pCore) {
-    // Apply updates.
     auto currMatConstBuff = pCore->currFrameResource->matConstBuffCPU;
     for (auto& mkv : pCore->materials) {
         auto m = mkv.second.get();
@@ -169,10 +112,31 @@ void dev_updateCoreData(D3DCore* pCore) {
 
 void dev_drawCoreElems(D3DCore* pCore) {
     checkHR(pCore->currFrameResource->cmdAlloc->Reset());
-    checkHR(pCore->cmdList->Reset(pCore->currFrameResource->cmdAlloc.Get(), nullptr));
-
+    // If the key is pressed, GetAsyncKeyState returns a SHORT value whose 15th bit is set (starts at 0).
+    if (GetAsyncKeyState('1') & 0x8000) {
+        checkHR(pCore->cmdList->Reset(pCore->currFrameResource->cmdAlloc.Get(), pCore->PSOs["wireframe"].Get()));
+    }
+    else {
+        checkHR(pCore->cmdList->Reset(pCore->currFrameResource->cmdAlloc.Get(), pCore->PSOs["solid"].Get()));
+    }
+    
     pCore->cmdList->RSSetViewports(1, &pCore->camera->screenViewport);
     pCore->cmdList->RSSetScissorRects(1, &pCore->camera->scissorRect);
+
+    pCore->cmdList->ResourceBarrier(1,
+        &CD3DX12_RESOURCE_BARRIER::Transition(
+            pCore->swapChainBuffs[pCore->currBackBuffIdx].Get(),
+            D3D12_RESOURCE_STATE_PRESENT,
+            D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+    clearBackBuff(Colors::LightSteelBlue, 1.0f, 0, pCore);
+
+    pCore->cmdList->OMSetRenderTargets(1,
+        &CD3DX12_CPU_DESCRIPTOR_HANDLE(
+            pCore->rtvHeap->GetCPUDescriptorHandleForHeapStart(),
+            pCore->currBackBuffIdx,
+            pCore->rtvDescSize), true,
+        &CD3DX12_CPU_DESCRIPTOR_HANDLE(pCore->dsvHeap->GetCPUDescriptorHandleForHeapStart()));
 
     ID3D12DescriptorHeap* descHeaps[] = { pCore->srvDescHeap.Get() };
     pCore->cmdList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
@@ -182,53 +146,18 @@ void dev_drawCoreElems(D3DCore* pCore) {
     auto procConstBuffAddr = pCore->currFrameResource->procConstBuffGPU->GetGPUVirtualAddress();
     pCore->cmdList->SetGraphicsRootConstantBufferView(1, procConstBuffAddr);
 
-    // Firstly do all of the rendering works with MSAA back buffer.
+    drawRenderItems(pCore, pCore->solidModeRitems.data(), pCore->solidModeRitems.size());
+
     pCore->cmdList->ResourceBarrier(1,
         &CD3DX12_RESOURCE_BARRIER::Transition(
-            pCore->msaaBackBuff.Get(),
-            D3D12_RESOURCE_STATE_RESOLVE_SOURCE,
-            D3D12_RESOURCE_STATE_RENDER_TARGET));
-
-    auto msaaRtvDescHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(pCore->rtvHeap->GetCPUDescriptorHandleForHeapStart());
-    msaaRtvDescHandle.Offset(2, pCore->rtvDescSize);
-    auto dsvDescHanlde = pCore->dsvHeap->GetCPUDescriptorHandleForHeapStart();
-    pCore->cmdList->OMSetRenderTargets(1, &msaaRtvDescHandle, TRUE, &dsvDescHanlde);
-
-    clearBackBuff(msaaRtvDescHandle, Colors::SkyBlue, dsvDescHanlde, 1.0f, 0, pCore);
-    drawRitemLayerWithName(pCore, "solid");
-    drawRitemLayerWithName(pCore, "billboard_gs");
-    drawRitemLayerWithName(pCore, "wireframe");
-    drawRitemLayerWithName(pCore, "alpha_test");
-    drawRitemLayerWithName(pCore, "alpha");
-
-    // Secondly resolve and copy data from MSAA back buffer to swap chain buffer.
-    D3D12_RESOURCE_BARRIER resolveBarriers[2] = {
-        CD3DX12_RESOURCE_BARRIER::Transition(
-            pCore->msaaBackBuff.Get(),
+            pCore->swapChainBuffs[pCore->currBackBuffIdx].Get(),
             D3D12_RESOURCE_STATE_RENDER_TARGET,
-            D3D12_RESOURCE_STATE_RESOLVE_SOURCE),
-        CD3DX12_RESOURCE_BARRIER::Transition(
-            pCore->swapChainBuffs[pCore->currBackBuffIdx].Get(),
-            D3D12_RESOURCE_STATE_PRESENT,
-            D3D12_RESOURCE_STATE_RESOLVE_DEST) };
-
-    pCore->cmdList->ResourceBarrier(2, resolveBarriers);
-
-    pCore->cmdList->ResolveSubresource(
-        pCore->swapChainBuffs[pCore->currBackBuffIdx].Get(), 0,
-        pCore->msaaBackBuff.Get(), 0, pCore->swapChainBuffFormat);
-
-    pCore->cmdList->ResourceBarrier(1,
-        &CD3DX12_RESOURCE_BARRIER::Transition(
-            pCore->swapChainBuffs[pCore->currBackBuffIdx].Get(),
-            D3D12_RESOURCE_STATE_RESOLVE_DEST,
             D3D12_RESOURCE_STATE_PRESENT));
 
     checkHR(pCore->cmdList->Close());
     ID3D12CommandList* cmdLists[] = { pCore->cmdList.Get() };
     pCore->cmdQueue->ExecuteCommandLists(1, cmdLists);
 
-    // Finally preset swap chain buffer.
     checkHR(pCore->swapChain->Present(0, 0));
     pCore->currBackBuffIdx = (pCore->currBackBuffIdx + 1) % 2;
 
@@ -260,7 +189,7 @@ void dev_onMouseMove(WPARAM btnState, int x, int y, D3DCore* pCore) {
         translateCamera(-dx, dy, 0.0f, pCore->camera.get());
     }
     else if ((btnState & MK_RBUTTON) != 0) {
-        float dy = 0.04f * (float)(y - pCore->camera->lastMouseY);
+        float dy = 0.02f * (float)(y - pCore->camera->lastMouseY);
         zoomCamera(-dy, pCore->camera.get());
     }
     pCore->camera->lastMouseX = x;

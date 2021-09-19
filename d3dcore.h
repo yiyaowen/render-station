@@ -39,10 +39,6 @@ using namespace Microsoft::WRL;
 struct D3DCore {
     HWND hWnd = nullptr;
 
-    XMFLOAT4 clearColor = {};
-
-    UINT _4xMsaaQuality = 0;
-
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     // Basic D3D components for creating a render window:
     // Factory, Swap Chain, Render Target Buffer (Swap Chain Buffer), Depth Stencil Buffer,
@@ -54,7 +50,6 @@ struct D3DCore {
     int currBackBuffIdx = 0;
     DXGI_FORMAT swapChainBuffFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
     ComPtr<ID3D12Resource> swapChainBuffs[2] = {};
-    ComPtr<ID3D12Resource> msaaBackBuff = nullptr;
     DXGI_FORMAT depthStencilBuffFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
     ComPtr<ID3D12Resource> depthStencilBuff = nullptr;
 
@@ -92,20 +87,10 @@ struct D3DCore {
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ComPtr<ID3D12RootSignature> rootSig = nullptr;
 
-    // VS, PS in rs.hlsl (default shaders)
-    ComPtr<ID3DBlob> defaultVsByteCode = nullptr;
-    ComPtr<ID3DBlob> defaultPsByteCode = nullptr;
-    // VS, GS, PS in geometry-shader.hlsl
-    ComPtr<ID3DBlob> subdivisionGsVsByteCode = nullptr;
-    ComPtr<ID3DBlob> subdivisionGsGsByteCode = nullptr;
-    ComPtr<ID3DBlob> subdivisionGsPsByteCode = nullptr;
-    // VS, GS, PS in billboard-gs.hlsl
-    ComPtr<ID3DBlob> billboardGsVsByteCode = nullptr;
-    ComPtr<ID3DBlob> billboardGsGsByteCode = nullptr;
-    ComPtr<ID3DBlob> billboardGsPsByteCode = nullptr;
+    ComPtr<ID3DBlob> vsByteCode = nullptr;
+    ComPtr<ID3DBlob> psByteCode = nullptr;
 
-    std::vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout = {};
-    std::vector<D3D12_INPUT_ELEMENT_DESC> billboardInputLayout = {};
+    std::vector<D3D12_INPUT_ELEMENT_DESC> inputLayout = {};
 
     std::unordered_map<std::string, ComPtr<ID3D12PipelineState>> PSOs = {};
 
@@ -123,18 +108,15 @@ struct D3DCore {
     FrameResource* currFrameResource = nullptr;
     std::vector<std::unique_ptr<FrameResource>> frameResources;
 
-    ProcConsts processData = {};
-
-    std::unordered_map<std::string, std::unique_ptr<RenderItem>> ritems = {};// ritems: render items
-    std::vector<RenderItem*> allRitems = {};
-    std::vector<std::pair<std::string, std::vector<RenderItem*>>> ritemLayers = {};
+    std::vector<std::unique_ptr<RenderItem>> ritems; // ritems: render items
+    std::vector<RenderItem*> solidModeRitems;
+    std::vector<RenderItem*> wireframeModeRitems;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     // It is a great idea to introduce some interesting techniques.
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    std::unordered_map<std::string, std::unique_ptr<Material>> materials = {};
-    std::unordered_map<std::string, std::unique_ptr<Texture>> textures2d = {};
-    std::unordered_map<std::string, std::unique_ptr<Texture>> textures2darray = {};
+    std::unordered_map<std::string, std::unique_ptr<Material>> materials;
+    std::unordered_map<std::string, std::unique_ptr<Texture>> textures;
     ComPtr<ID3D12DescriptorHeap> srvDescHeap = nullptr;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -147,9 +129,7 @@ std::pair<int, int> getWndSize(HWND hWnd);
 
 void flushCmdQueue(D3DCore* pCore);
 
-void createD3DCore(HWND hWnd, XMFLOAT4 clearColor, D3DCore** ppCore);
-
-void checkFeatureSupports(D3DCore* pCore);
+void createD3DCore(HWND hWnd, D3DCore** ppCore);
 
 void createCmdObjs(D3DCore* pCore);
 void createSwapChain(HWND hWnd, D3DCore* pCore);
@@ -161,20 +141,18 @@ void createInputLayout(D3DCore* pCore);
 void createPSOs(D3DCore* pCore);
 
 void createBasicMaterials(D3DCore* pCore);
-// Due to root signature includes a descriptor table of textures, and materials depend on initialized textures,
+// Due to root signature includes a descriptor table of textures and materials depend on initialized textures,
 // all texture initialization funcs should be called before the root signature and the materials are created.
 void loadBasicTextures(D3DCore* pCore);
 void createDescHeaps(D3DCore* pCore);
 std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> generateStaticSamplers();
 
-void createRenderItemLayers(D3DCore* pCore);
 void createRenderItems(D3DCore* pCore);
 
 // Note frame resource depends on initialized render items, materials.
 // This func should be called only after these components created.
 void createFrameResources(D3DCore* pCore);
 
-void resizeSwapBuffs(int w, int h, XMFLOAT4 clearColor, D3DCore* pCore);
+void resizeSwapBuffs(int w, int h, D3DCore* pCore);
 
-void clearBackBuff(D3D12_CPU_DESCRIPTOR_HANDLE msaaRtvDescHandle, XMVECTORF32 color,
-    D3D12_CPU_DESCRIPTOR_HANDLE dsvDescHandle, FLOAT depth, UINT8 stencil, D3DCore* pCore);
+void clearBackBuff(XMVECTORF32 color, FLOAT depth, UINT8 stencil, D3DCore* pCore);

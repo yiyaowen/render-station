@@ -6,7 +6,6 @@
 ** yiyaowen (c) 2021 All Rights Reserved.
 */
 
-#include <DirectXColors.h>
 #include <windows.h>
 #include <windowsx.h>
 
@@ -38,7 +37,7 @@ WNDPROC_SIGNATURE(renderWindowProc) {
         wndH = HIWORD(lParam);
         if (pRcore != nullptr) {
             if (wParam != SIZE_MINIMIZED) {
-                resizeSwapBuffs(wndW, wndH, pRcore->clearColor, pRcore);
+                resizeSwapBuffs(wndW, wndH, pRcore);
                 resizeCameraView(wndW, wndH, pRcore->camera.get());
             }
         }
@@ -126,7 +125,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 #endif
     createRenderWindow(hInstance, &pRwnd);
-    createD3DCore(pRwnd->hMainWnd, XMFLOAT4(DirectX::Colors::SkyBlue), &pRcore);
+    createD3DCore(pRwnd->hMainWnd, &pRcore);
     startRenderWindowMsgLoop(pRwnd);
     return 0;
 }
