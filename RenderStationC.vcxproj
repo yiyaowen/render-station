@@ -143,6 +143,7 @@
   <ItemGroup>
     <ClCompile Include="camera.cpp" />
     <ClCompile Include="d3dcore.cpp" />
+    <ClCompile Include="DDSTextureLoader.cpp" />
     <ClCompile Include="devfunc.cpp" />
     <ClCompile Include="frame-async-utils.cpp" />
     <ClCompile Include="geometry-utils.cpp" />
@@ -157,6 +158,7 @@
     <ClInclude Include="camera.h" />
     <ClInclude Include="d3dcore.h" />
     <ClInclude Include="d3dx12.h" />
+    <ClInclude Include="DDSTextureLoader.h" />
     <ClInclude Include="debugger.h" />
     <ClInclude Include="devfunc.h" />
     <ClInclude Include="frame-async-utils.h" />
@@ -167,6 +169,7 @@
     <ClInclude Include="math-utils.h" />
     <ClInclude Include="render-item-utils.h" />
     <ClInclude Include="shader.h" />
+    <ClInclude Include="texture.h" />
     <ClInclude Include="timer-utils.h" />
     <ClInclude Include="timer.h" />
     <ClInclude Include="vmesh-utils.h" />

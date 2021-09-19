@@ -11,6 +11,7 @@
 #pragma comment(lib, "D3D12.lib")
 #pragma comment(lib, "dxgi.lib")
 
+#include <array>
 #include <d3d12.h>
 #include <DirectXPackedVector.h>
 #include <dxgi.h>
@@ -31,11 +32,14 @@ using namespace Microsoft::WRL;
 #include "material.h"
 #include "math-utils.h"
 #include "shader.h"
+#include "texture.h"
 #include "timer.h"
 #include "vmesh.h"
 
 struct D3DCore {
     HWND hWnd = nullptr;
+
+    UINT _4xMsaaQuality = 0;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     // Basic D3D components for creating a render window:
@@ -106,14 +110,16 @@ struct D3DCore {
     FrameResource* currFrameResource = nullptr;
     std::vector<std::unique_ptr<FrameResource>> frameResources;
 
-    std::vector<std::unique_ptr<RenderItem>> ritems; // ritems: render items
-    std::vector<RenderItem*> solidModeRitems;
-    std::vector<RenderItem*> wireframeModeRitems;
+    std::unordered_map<std::string, std::unique_ptr<RenderItem>> ritems; // ritems: render items
+    std::vector<RenderItem*> allRitems;
+    std::vector<std::pair<std::string, std::vector<RenderItem*>>> ritemLayers;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    // It is a great idea to introduce the conception of material now.
+    // It is a great idea to introduce some interesting techniques.
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     std::unordered_map<std::string, std::unique_ptr<Material>> materials;
+    std::unordered_map<std::string, std::unique_ptr<Texture>> textures;
+    ComPtr<ID3D12DescriptorHeap> srvDescHeap = nullptr;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     // A well designed timer is important for animation etc.
@@ -127,6 +133,8 @@ void flushCmdQueue(D3DCore* pCore);
 
 void createD3DCore(HWND hWnd, D3DCore** ppCore);
 
+void checkFeatureSupports(D3DCore* pCore);
+
 void createCmdObjs(D3DCore* pCore);
 void createSwapChain(HWND hWnd, D3DCore* pCore);
 void createRtvDsvHeaps(D3DCore* pCore);
@@ -137,7 +145,13 @@ void createInputLayout(D3DCore* pCore);
 void createPSOs(D3DCore* pCore);
 
 void createBasicMaterials(D3DCore* pCore);
+// Due to root signature includes a descriptor table of textures, and materials depend on initialized textures,
+// all texture initialization funcs should be called before the root signature and the materials are created.
+void loadBasicTextures(D3DCore* pCore);
+void createDescHeaps(D3DCore* pCore);
+std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> generateStaticSamplers();
 
+void createRenderItemLayers(D3DCore* pCore);
 void createRenderItems(D3DCore* pCore);
 
 // Note frame resource depends on initialized render items, materials.

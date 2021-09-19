@@ -7,6 +7,7 @@
 */
 
 #include <DirectXColors.h>
+#include <fstream>
 
 #include "debugger.h"
 #include "devfunc.h"
@@ -18,36 +19,91 @@ void dev_initCoreElems(D3DCore* pCore) {
     // Note the origin render item collection has already included a set of axes (X-Y-Z).
     // However, the collection can still be cleared if the first 3 axes ritems are handled carefully.
     //pCore->ritems.clear();
-    auto cubeGeo = std::make_unique<ObjectGeometry>();
-    generateCube(XMFLOAT3(5.0f, 0.3f, 5.0f), XMFLOAT4(DirectX::Colors::Black), cubeGeo.get());
-    translateObjectGeometry(0.0f, -0.6f, 0.0f, cubeGeo.get());
-    auto cube = std::make_unique<RenderItem>();
-    generateCubeEx(pCore, cubeGeo.get(), cube.get());
-    cube->material = pCore->materials["water"].get();
-    pCore->ritems.push_back(std::move(cube));
 
-    auto cylinderGeo = std::make_unique<ObjectGeometry>();
-    generateCylinder(0.6f, 0.8f, 2.5f, 20, 20, XMFLOAT4(DirectX::Colors::Black), cylinderGeo.get());
-    rotateObjectGeometry(-XM_PIDIV2, 0.0f, 0.0f, cylinderGeo.get());
-    translateObjectGeometry(2.0f, 1.2f, 0.0f, cylinderGeo.get());
-    auto cylinder = std::make_unique<RenderItem>();
-    generateCylinderEx(pCore, cylinderGeo.get(), cylinder.get());
-    cylinder->material = pCore->materials["grass"].get();
-    pCore->ritems.push_back(std::move(cylinder));
+    auto groundGeo = std::make_unique<ObjectGeometry>();
+    generateGrid(80.0f, 80.0f, 1, 1, groundGeo.get());
+    rotateObjectGeometry(-XM_PIDIV2, 0.0f, 0.0f, groundGeo.get());
+    translateObjectGeometry(0.0f, 0.0f, 40.0f, groundGeo.get());
+    auto ground = std::make_unique<RenderItem>();
+    initRitemWithGeoInfo(pCore, groundGeo.get(), ground.get());
+    ground->material = pCore->materials["checkboard"].get();
+    pCore->ritems.insert({ "ground", std::move(ground) });
+    findRitemLayerWithName("solid", pCore->ritemLayers).push_back(pCore->ritems["ground"].get());
+    findRitemLayerWithName("stencil_reflect", pCore->ritemLayers).push_back(pCore->ritems["ground"].get());
 
-    pCore->solidModeRitems.clear();
-    for (auto& ritem : pCore->ritems) {
-        pCore->solidModeRitems.push_back(ritem.get());
+    auto wallGeo = std::make_unique<ObjectGeometry>();
+    generateGrid(80.0f, 40.0f, 1, 1, wallGeo.get());
+    translateObjectGeometry(0.0f, 20.0f, 0.0f, wallGeo.get());
+    auto wall = std::make_unique<RenderItem>();
+    initRitemWithGeoInfo(pCore, wallGeo.get(), wall.get());
+    wall->material = pCore->materials["brick"].get();
+    pCore->ritems.insert({ "wall", std::move(wall) });
+    // The wall object should be drawn alone due to it will affect the mirror objects' rendering.
+    //findRitemLayerWithName("solid", pCore->ritemLayers).push_back(pCore->ritems["wall"].get());
+
+    auto skullGeo = std::make_unique<ObjectGeometry>();
+    std::ifstream fin("models/skull.txt");
+    std::string skull_ignore;
+    UINT skullVerCount, skullTriCount;
+    fin >> skull_ignore >> skullVerCount;
+    fin >> skull_ignore >> skullTriCount;
+    skullGeo->vertices.resize(skullVerCount);
+    skullGeo->indices.resize(skullTriCount * 3);
+    fin >> skull_ignore >> skull_ignore >> skull_ignore >> skull_ignore;
+    for (UINT i = 0; i < skullVerCount; ++i) {
+        Vertex& ver = skullGeo->vertices[i];
+        fin >> ver.pos.x >> ver.pos.y >> ver.pos.z;
+        fin >> ver.normal.x >> ver.normal.y >> ver.normal.z;
     }
-    updateRitemRangeObjConstBuffIdx(pCore->solidModeRitems.data(), pCore->solidModeRitems.size());
+    fin >> skull_ignore >> skull_ignore >> skull_ignore;
+    for (UINT i = 0; i < skullTriCount; ++i) {
+        fin >> skullGeo->indices[i * 3];
+        fin >> skullGeo->indices[i * 3 + 1];
+        fin >> skullGeo->indices[i * 3 + 2];
+    }
+    skullGeo->locationInfo.indexCount = skullGeo->indices.size();
+    skullGeo->locationInfo.startIndexLocation = 0;
+    skullGeo->locationInfo.baseVertexLocation = 0;
+    rotateObjectGeometry(0.0f, 0.6f * XM_PI, 0.0f, skullGeo.get());
+    scaleObjectGeometry(0.4f, 0.4f, 0.4f, skullGeo.get());
+    translateObjectGeometry(0.0f, 0.0f, 4.0f, skullGeo.get());
+    auto skull = std::make_unique<RenderItem>();
+    initRitemWithGeoInfo(pCore, skullGeo.get(), skull.get());
+    skull->material = pCore->materials["skull"].get();
+    pCore->ritems.insert({ "skull", std::move(skull) });
+    findRitemLayerWithName("solid", pCore->ritemLayers).push_back(pCore->ritems["skull"].get());
+    findRitemLayerWithName("stencil_reflect", pCore->ritemLayers).push_back(pCore->ritems["skull"].get());
+
+    auto mirrorGeo = std::make_unique<ObjectGeometry>();
+    generateGrid(8.0f, 4.0f, 1, 1, mirrorGeo.get());
+    translateObjectGeometry(0.0f, 2.2f, 0.01f, mirrorGeo.get());
+    auto mirror = std::make_unique<RenderItem>();
+    initRitemWithGeoInfo(pCore, mirrorGeo.get(), mirror.get());
+    mirror->material = pCore->materials["mirror"].get();
+    pCore->ritems.insert({ "mirror", std::move(mirror) });
+    findRitemLayerWithName("stencil_mark", pCore->ritemLayers).push_back(pCore->ritems["mirror"].get());
+    findRitemLayerWithName("alpha", pCore->ritemLayers).push_back(pCore->ritems["mirror"].get());
+
+    for (auto& kv : pCore->ritems) {
+        pCore->allRitems.push_back(kv.second.get());
+    }
+    updateRitemRangeObjConstBuffIdx(pCore->allRitems.data(), pCore->allRitems.size());
 
     pCore->frameResources.clear();
     createFrameResources(pCore);
 }
 
 void dev_updateCoreObjConsts(D3DCore* pCore) {
+    XMStoreFloat4x4(&pCore->ritems["ground"]->constData.texTrans,
+        XMMatrixTranspose(XMMatrixScaling(60.0f, 60.0f, 1.0f)));
+
+    XMStoreFloat4x4(&pCore->ritems["wall"]->constData.texTrans,
+        XMMatrixTranspose(XMMatrixScaling(20.0f, 20.0f, 1.0f)));
+
+    // Apply updates.
     auto currObjConstBuff = pCore->currFrameResource->objConstBuffCPU;
-    for (auto& ritem : pCore->ritems) {
+    for (auto& kv : pCore->ritems) {
+        auto& ritem = kv.second;
         if (ritem->numDirtyFrames > 0) {
             memcpy(currObjConstBuff + ritem->objConstBuffIdx * calcConstBuffSize(sizeof(ObjConsts)),
                 &ritem->constData, sizeof(ObjConsts));
@@ -61,23 +117,43 @@ void dev_updateCoreObjConsts(D3DCore* pCore) {
 void dev_updateCoreProcConsts(D3DCore* pCore) {
     ProcConsts constData;
 
+    // Reality objects
     XMMATRIX viewMat = XMLoadFloat4x4(&pCore->camera->viewTrans);
     XMMATRIX projMat = XMLoadFloat4x4(&pCore->camera->projTrans);
     XMStoreFloat4x4(&constData.viewTrans, XMMatrixTranspose(viewMat));
     XMStoreFloat4x4(&constData.projTrans, XMMatrixTranspose(projMat));
 
-    constData.eyePosW = { 0.0f, 0.0f, 0.0f };
+    XMVECTOR eyePos = sphericalToCartesianDX(
+        pCore->camera->radius, pCore->camera->theta, pCore->camera->phi);
+    XMStoreFloat3(&constData.eyePosW, eyePos);
 
-    constData.ambientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
+    constData.ambientLight = { 0.25f, 0.25f, 0.3f, 1.0f };
 
-    XMVECTOR lightDirection = -sphericalToCartesian(1.0f, XM_PIDIV4, XM_PIDIV4);
+    XMVECTOR lightDirection = -sphericalToCartesianDX(1.0f, XM_PIDIV4, XM_PIDIV4);
     XMStoreFloat3(&constData.lights[0].direction, lightDirection);
-    constData.lights[0].strength = { 1.0f, 1.0f, 0.9f };
+    constData.lights[0].strength = { 0.9f, 0.9f, 0.92f };
 
+    constData.fogColor = XMFLOAT4(DirectX::Colors::Black);
+    constData.fogFallOffStart = 12.0f;
+    constData.fogFallOffEnd = 20.0f;
+
+    updateProcConstsWithReflectMat(XMMatrixIdentity(), &constData);    
+
+    // Apply updates.
     memcpy(pCore->currFrameResource->procConstBuffCPU, &constData, sizeof(ProcConsts));
+
+    // Mirror objects
+    // Target reflection plane: z = 0 (x-y plane).
+    // Note the meaning of the vector parameter passed to XMMatrixReflect:
+    // Four components correspond to the four coefficients of Ax + By + Cz + D = 0 each other.
+    updateProcConstsWithReflectMat(XMMatrixReflect(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f)), &constData);
+
+    // Apply updates.
+    memcpy(pCore->currFrameResource->procConstBuffCPU + sizeof(ProcConsts), &constData, sizeof(ProcConsts));
 }
 
 void dev_updateCoreMatConsts(D3DCore* pCore) {
+    // Apply updates.
     auto currMatConstBuff = pCore->currFrameResource->matConstBuffCPU;
     for (auto& mkv : pCore->materials) {
         auto m = mkv.second.get();
@@ -118,14 +194,8 @@ void dev_updateCoreData(D3DCore* pCore) {
 
 void dev_drawCoreElems(D3DCore* pCore) {
     checkHR(pCore->currFrameResource->cmdAlloc->Reset());
-    // If the key is pressed, GetAsyncKeyState returns a SHORT value whose 15th bit is set (starts at 0).
-    if (GetAsyncKeyState('1') & 0x8000) {
-        checkHR(pCore->cmdList->Reset(pCore->currFrameResource->cmdAlloc.Get(), pCore->PSOs["wireframe"].Get()));
-    }
-    else {
-        checkHR(pCore->cmdList->Reset(pCore->currFrameResource->cmdAlloc.Get(), pCore->PSOs["solid"].Get()));
-    }
-    
+    checkHR(pCore->cmdList->Reset(pCore->currFrameResource->cmdAlloc.Get(), nullptr));
+
     pCore->cmdList->RSSetViewports(1, &pCore->camera->screenViewport);
     pCore->cmdList->RSSetScissorRects(1, &pCore->camera->scissorRect);
 
@@ -135,8 +205,6 @@ void dev_drawCoreElems(D3DCore* pCore) {
             D3D12_RESOURCE_STATE_PRESENT,
             D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-    clearBackBuff(Colors::LightSteelBlue, 1.0f, 0, pCore);
-
     pCore->cmdList->OMSetRenderTargets(1,
         &CD3DX12_CPU_DESCRIPTOR_HANDLE(
             pCore->rtvHeap->GetCPUDescriptorHandleForHeapStart(),
@@ -144,12 +212,34 @@ void dev_drawCoreElems(D3DCore* pCore) {
             pCore->rtvDescSize), true,
         &CD3DX12_CPU_DESCRIPTOR_HANDLE(pCore->dsvHeap->GetCPUDescriptorHandleForHeapStart()));
 
+    ID3D12DescriptorHeap* descHeaps[] = { pCore->srvDescHeap.Get() };
+    pCore->cmdList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
+
     pCore->cmdList->SetGraphicsRootSignature(pCore->rootSig.Get());
 
     auto procConstBuffAddr = pCore->currFrameResource->procConstBuffGPU->GetGPUVirtualAddress();
     pCore->cmdList->SetGraphicsRootConstantBufferView(1, procConstBuffAddr);
 
-    drawRenderItems(pCore, pCore->solidModeRitems.data(), pCore->solidModeRitems.size());
+    clearBackBuff(Colors::Black, 1.0f, 0, pCore);
+    // If the default render item layer drawing order cannot meet the requirements, you should set them manually.
+    //for (auto& kv : pCore->ritemLayers) {
+    //    // If the related PSO has not been initialized we simply skip drawing the render item layer.
+    //    if (pCore->PSOs[kv.first] == nullptr) continue;
+    //    pCore->cmdList->SetPipelineState(pCore->PSOs[kv.first].Get());
+    //    drawRenderItems(pCore, kv.second.data(), kv.second.size());
+    //}
+    drawRitemLayerWithName(pCore, "solid");
+    pCore->cmdList->OMSetStencilRef(1);
+    drawRitemLayerWithName(pCore, "stencil_mark");
+    pCore->cmdList->SetGraphicsRootConstantBufferView(1, procConstBuffAddr + sizeof(ProcConsts));
+    drawRitemLayerWithName(pCore, "stencil_reflect");
+    pCore->cmdList->OMSetStencilRef(0);
+    pCore->cmdList->SetGraphicsRootConstantBufferView(1, procConstBuffAddr);
+    drawRitemLayerWithName(pCore, "alpha");
+    // Draw the wall object.
+    pCore->cmdList->SetPipelineState(pCore->PSOs["solid"].Get());
+    auto pWallRitem = pCore->ritems["wall"].get();
+    drawRenderItems(pCore, &pWallRitem, 1);
 
     pCore->cmdList->ResourceBarrier(1,
         &CD3DX12_RESOURCE_BARRIER::Transition(
@@ -192,7 +282,7 @@ void dev_onMouseMove(WPARAM btnState, int x, int y, D3DCore* pCore) {
         translateCamera(-dx, dy, 0.0f, pCore->camera.get());
     }
     else if ((btnState & MK_RBUTTON) != 0) {
-        float dy = 0.02f * (float)(y - pCore->camera->lastMouseY);
+        float dy = 0.04f * (float)(y - pCore->camera->lastMouseY);
         zoomCamera(-dy, pCore->camera.get());
     }
     pCore->camera->lastMouseX = x;

@@ -34,22 +34,23 @@ void rotateCamera(float dphi, float dtheta, Camera* pCamera) {
 }
 
 void zoomCamera(float dr, Camera* pCamera) {
-    pCamera->radius = clampf(pCamera->radius + dr, 3.0f, 20.0f);
+    pCamera->radius = clampf(pCamera->radius + dr, 3.0f, 60.0f);
     updateCameraViewTrans(pCamera);
 }
 
 void translateCamera(float dx, float dy, float dz, Camera* pCamera) {
-    XMMATRIX projMat = XMLoadFloat4x4(&pCamera->projTrans);
-    XMMATRIX viewMat = XMLoadFloat4x4(&pCamera->viewTrans);
-    XMMATRIX invProjMat = XMMatrixInverse(&XMMatrixDeterminant(projMat), projMat);
-    XMMATRIX invViewMat = XMMatrixInverse(&XMMatrixDeterminant(viewMat), viewMat);
-    XMMATRIX invViewProjMat = invViewMat * invProjMat;
-    XMVECTOR deltaVec = XMVectorSet(dx, dy, dz, 0.0f);
-    deltaVec = XMVector4Transform(deltaVec, invViewProjMat);
-    pCamera->x += XMVectorGetX(deltaVec);
-    pCamera->y += XMVectorGetY(deltaVec);
-    pCamera->z += XMVectorGetZ(deltaVec);
-    updateCameraViewTrans(pCamera);
+    // TODO
+    //XMMATRIX projMat = XMLoadFloat4x4(&pCamera->projTrans);
+    //XMMATRIX viewMat = XMLoadFloat4x4(&pCamera->viewTrans);
+    //XMMATRIX invProjMat = XMMatrixInverse(&XMMatrixDeterminant(projMat), projMat);
+    //XMMATRIX invViewMat = XMMatrixInverse(&XMMatrixDeterminant(viewMat), viewMat);
+    //XMMATRIX invViewProjMat = invViewMat * invProjMat;
+    //XMVECTOR deltaVec = XMVectorSet(dx, dy, dz, 0.0f);
+    //deltaVec = XMVector4Transform(deltaVec, invViewProjMat);
+    //pCamera->x += XMVectorGetX(deltaVec);
+    //pCamera->y += XMVectorGetY(deltaVec);
+    //pCamera->z += XMVectorGetZ(deltaVec);
+    //updateCameraViewTrans(pCamera);
 }
 
 void updateCameraViewTrans(Camera* pCamera) {

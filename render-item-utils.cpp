@@ -11,25 +11,25 @@
 #include "render-item-utils.h"
 #include "vmesh-utils.h"
 
-void generateCubeEx(D3DCore* pCore, ObjectGeometry* geo, RenderItem* cube) {
-    initEmptyRenderItem(cube);
-    cube->mesh = std::make_unique<Vmesh>();
+void initRitemWithGeoInfo(D3DCore* pCore, ObjectGeometry* geo, RenderItem* ritem) {
+    initEmptyRenderItem(ritem);
+    ritem->mesh = std::make_unique<Vmesh>();
     initVmesh(pCore, geo->vertices.data(), geo->vertexDataSize(),
-        geo->indices.data(), geo->indexDataSize(), cube->mesh.get());
-    cube->mesh->objects["main"] = geo->locationInfo;
-}
-
-void generateCylinderEx(D3DCore* pCore, ObjectGeometry* geo, RenderItem* cylinder)
-{
-    initEmptyRenderItem(cylinder);
-    cylinder->mesh = std::make_unique<Vmesh>();
-    initVmesh(pCore, geo->vertices.data(), geo->vertexDataSize(),
-        geo->indices.data(), geo->indexDataSize(), cylinder->mesh.get());
-    cylinder->mesh->objects["main"] = geo->locationInfo;
+        geo->indices.data(), geo->indexDataSize(), ritem->mesh.get());
+    ritem->mesh->objects["main"] = geo->locationInfo;
 }
 
 void updateRitemRangeObjConstBuffIdx(RenderItem** ppRitem, size_t ritemCount) {
     for (size_t i = 0; i < ritemCount; ++i) {
         ppRitem[i]->objConstBuffIdx = i;
     }
+}
+
+std::vector<RenderItem*>& findRitemLayerWithName(const std::string& name,
+    std::vector<std::pair<std::string, std::vector<RenderItem*>>>& layers)
+{
+    return std::find_if(layers.begin(), layers.end(),
+        [&](const std::pair<std::string, std::vector<RenderItem*>>& p) {
+            return name == p.first;
+        })->second;
 }

@@ -19,6 +19,8 @@ void initEmptyRenderItem(RenderItem* pRitem);
 
 void drawRenderItems(D3DCore* pCore, RenderItem** ppRitem, UINT ritemCount);
 
+void drawRitemLayerWithName(D3DCore* pCore, std::string name);
+
 UINT calcConstBuffSize(UINT byteSize);
 
 void createConstBuffPair(D3DCore* pCore, size_t elemSize, UINT elemCount,
