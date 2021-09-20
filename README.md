@@ -75,4 +75,16 @@
 
 ![](https://raw.githubusercontent.com/yiyaowen/render-station-demo-image/main/wave-simulation.png)
 
+### 512x512水面网格波浪模拟，CPU-General-Compute VS. GPU-CS-Optimization
+
+计算着色器加速如德芙般丝滑，使用CPU直接计算三帧电竞！
+
+CPU直接计算，10帧以下：
+
+![](https://raw.githubusercontent.com/yiyaowen/render-station-demo-image/main/wave_simulation_with_CPU_general_compute.png)
+
+GPU计算着色器优化，稳定40帧以上：
+
+![](https://raw.githubusercontent.com/yiyaowen/render-station-demo-image/main/wave_simulation_with_GPU_CS_optimization.png)
+
 === 我也是有底线的 ===
