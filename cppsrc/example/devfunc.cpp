@@ -25,88 +25,20 @@ void dev_initCoreElems(D3DCore* pCore) {
      //However, the collection can still be cleared if the first 3 axes ritems are handled carefully.
     findRitemLayerWithName("solid", pCore->ritemLayers).clear();
 
-    auto boxGeo = std::make_unique<ObjectGeometry>();
-    generateCube(XMFLOAT3(1.0f, 1.0f, 1.0f), boxGeo.get());
-    translateObjectGeometry(-4.0f, 0.0f, 0.0f, boxGeo.get());
-    auto box = std::make_unique<RenderItem>();
-    initRitemWithGeoInfo(pCore, boxGeo.get(), 1, box.get());
-    box->materials = { pCore->materials["fence"].get() };
-    moveNamedRitemToAllRitems(pCore, "box", std::move(box));
-    bindRitemReferenceWithLayers(pCore, "box", { {"alpha_test", 0} });
-    bindRitemReferenceWithLayers(pCore, "box", { {"wireframe", 0} });
-    //pCore->ritems["box"]->isVisible = false;
-
-    // Hill 1
     auto hillGeo = std::make_unique<ObjectGeometry>();
-    generateGrid(100.0f, 100.0f, 100, 100, hillGeo.get());
-    disturbGridToHill(0.2f, 0.2f, hillGeo.get());
-    rotateObjectGeometry(-XM_PIDIV2, 0.0f, 0.0f, hillGeo.get());
+    appendVerticesToObjectGeometry({
+        { {-10.0f, 0.0f, +10.0f } },
+        { {+10.0f, 0.0f, +10.0f } },
+        { {-10.0f, 0.0f, -10.0f } },
+        { {+10.0f, 0.0f, -10.0f } } },
+        { 0, 1, 2, 3 },
+        hillGeo.get());
     auto hill = std::make_unique<RenderItem>();
     initRitemWithGeoInfo(pCore, hillGeo.get(), 1, hill.get());
-    hill->materials = { pCore->materials["grass"].get() };
+    hill->topologyType = D3D_PRIMITIVE_TOPOLOGY_4_CONTROL_POINT_PATCHLIST;
+    hill->materials = { pCore->materials["skull"].get() };
     moveNamedRitemToAllRitems(pCore, "hill", std::move(hill));
-    bindRitemReferenceWithLayers(pCore, "hill", { {"solid", 0} });
-    bindRitemReferenceWithLayers(pCore, "hill", { {"wireframe", 0} });
-    //pCore->ritems["hill"]->isVisible = false;
-    // Hill 2
-    rotateObjectGeometry(0.0f, 130.0f * XM_2PI / 360.0f, 0.0f, hillGeo.get());
-    translateObjectGeometry(0.0f, -5.0f, 0.0f, hillGeo.get());
-    auto hill2 = std::make_unique<RenderItem>();
-    initRitemWithGeoInfo(pCore, hillGeo.get(), 1, hill2.get());
-    hill2->materials = { pCore->materials["grass"].get() };
-    moveNamedRitemToAllRitems(pCore, "hill2", std::move(hill2));
-    bindRitemReferenceWithLayers(pCore, "hill2", { {"solid", 0} });
-    bindRitemReferenceWithLayers(pCore, "hill2", { {"wireframe", 0} });
-    //pCore->ritems["hill2"]->isVisible = false;
-
-    auto lakeGeo = std::make_unique<ObjectGeometry>();
-    generateGrid(100.0f, 100.0f, 256, 256, lakeGeo.get());
-    rotateObjectGeometry(-XM_PIDIV2, 0.0f, 0.0f, lakeGeo.get());
-    translateObjectGeometry(0.0f, -0.2f, 0.0f, lakeGeo.get());
-    auto lake = std::make_unique<RenderItem>();
-    initRitemWithGeoInfo(pCore, lakeGeo.get(), 1, lake.get());
-    lake->materials = { pCore->materials["water"].get() };
-    // Lake ritem is marked as dynamic to simulate wave animation.
-    lake->isDynamic = true;
-    lake->modifiers["wave"] = std::make_unique<WaveSimulator>(pCore,
-        lake.get(), // Initial target render item.
-        100.0f / (2 * 256), // The distance between two adjacent vertices in the grid.
-        256, // Half horizontal node count.
-        256, // Half vertical node count.
-        lakeGeo.get(),
-        8.0f, // The spread velocity of wave.
-        0.15f, // The damping grade with velocity dimension.
-        0.4f, // The min disturbance height.
-        0.5f, // The max disturbance height.
-        0.01f, // The interval seconds between 2 random disturbance.
-        false); // TRUE to enable GPU CS optimization. FALSE to use CPU general computation.
-    //lake->modifiers["wave"]->setActived(false);
-    moveNamedRitemToAllRitems(pCore, "lake", std::move(lake));
-    bindRitemReferenceWithLayers(pCore, "lake", { {"alpha", 0} });
-    bindRitemReferenceWithLayers(pCore, "lake", { {"alpha_cartoon", 0} });
-    bindRitemReferenceWithLayers(pCore, "lake", { {"wireframe", 0} });
-    //pCore->ritems["water"]->isVisible = false;
-
-    auto treesGeo = std::make_unique<ObjectGeometry>();
-    std::vector<Vertex> treeVertices;
-    std::vector<UINT32> treeIndicies;
-    for (int i = 0; i < 200; ++i) {
-        float randX = randfloat(-40.0f, 40.0f);
-        float randZ = 0.0f;
-        if (-30.0f < randX && randX < 30.0f) { randZ = randfloatEx({ {-40.0f, -30.0f}, {30.0f, 40.0f} }); }
-        else { randZ = randfloat(-40.0f, 40.0f); }
-        treeVertices.push_back({{ randX, randfloat(3.5f, 7.5f), randZ }, {}, {}, { randfloat(15.0f, 17.0f), randfloat(16.0f, 18.0f) }});
-        treeIndicies.push_back(i);
-    }
-    appendVerticesToObjectGeometry(treeVertices, treeIndicies, treesGeo.get());
-    auto trees = std::make_unique<RenderItem>();
-    initRitemWithGeoInfo(pCore, treesGeo.get(), 1, trees.get());
-    // Pass the point to geometry shader and then the shader will generate 4 new points from the point passed.
-    trees->topologyType = D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
-    trees->materials = { pCore->materials["trees"].get() };
-    moveNamedRitemToAllRitems(pCore, "trees", std::move(trees));
-    bindRitemReferenceWithLayers(pCore, "trees", { {"billboard", 0} });
-    //pCore->ritems["trees"]->isVisible = false;
+    bindRitemReferenceWithLayers(pCore, "hill", { {"hill_tessellation", 0}, {"hill_tessellation_wireframe", 0} });
 
     updateRitemRangeObjConstBuffIdx(pCore->allRitems.data(), pCore->allRitems.size());
 
@@ -125,16 +57,6 @@ void dev_initCoreElems(D3DCore* pCore) {
 }
 
 void dev_updateCoreObjConsts(D3DCore* pCore) {
-    float timeArg = pCore->timer->elapsedSecs;
-    auto lakeTexScaleMat = XMMatrixScaling(6.0f, 6.0f, 1.0f);
-    auto lakeTexTransMat = XMMatrixTranslation(timeArg * 0.005f, timeArg * 0.005f, 0.0f);
-    auto lakeTexMat = lakeTexTransMat * lakeTexScaleMat;
-    XMStoreFloat4x4(&pCore->ritems["lake"]->constData[0].texTrans,
-        XMMatrixTranspose(lakeTexMat));
-    pCore->ritems["lake"]->constData[0].hasDisplacementMap = pCore->ritems["lake"]->hasDisplacementMap;
-    pCore->ritems["lake"]->constData[0].hasNormalMap = pCore->ritems["lake"]->hasNormalMap;
-    pCore->ritems["lake"]->numDirtyFrames = NUM_FRAME_RESOURCES;
-
     // Apply updates.
     auto currObjConstBuff = pCore->currFrameResource->objConstBuffCPU;
     for (auto& kv : pCore->ritems) {
@@ -172,17 +94,14 @@ void dev_updateCoreProcConsts(D3DCore* pCore) {
     constData.lights[0].strength = { 1.0f, 1.0f, 0.9f };
 
     constData.fogColor = XMFLOAT4(DirectX::Colors::SkyBlue);
-    constData.fogFallOffStart = 20.0f;
-    constData.fogFallOffEnd = 80.0f;
+    constData.fogFallOffStart = 200.0f;
+    constData.fogFallOffEnd = 800.0f;
 
     // Apply updates.
     memcpy(pCore->currFrameResource->procConstBuffCPU, &constData, sizeof(ProcConsts));
 }
 
 void dev_updateCoreMatConsts(D3DCore* pCore) {
-    XMStoreFloat4x4(&pCore->materials["grass"]->constData.matTrans,
-        XMMatrixTranspose(XMMatrixScaling(8.0f, 8.0f, 1.0f)));
-
     // Apply updates.
     auto currMatConstBuff = pCore->currFrameResource->matConstBuffCPU;
     for (auto& mkv : pCore->materials) {
@@ -269,9 +188,11 @@ void dev_drawCoreElems(D3DCore* pCore) {
     // Switch between solid mode and wireframe mode.
     if (GetAsyncKeyState('1')) {
         drawRitemLayerWithName(pCore, "wireframe");
+        drawRitemLayerWithName(pCore, "hill_tessellation_wireframe");
     }
     else {
         drawRitemLayerWithName(pCore, "solid");
+        drawRitemLayerWithName(pCore, "hill_tessellation");
         drawRitemLayerWithName(pCore, "billboard");
         drawRitemLayerWithName(pCore, "alpha_test");
         if (GetAsyncKeyState('0')) {
@@ -282,19 +203,15 @@ void dev_drawCoreElems(D3DCore* pCore) {
         }
     }
 
-    bool originFlag = pCore->ritems["trees"]->isVisible;
-    pCore->ritems["trees"]->isVisible = false;
     // There is no need to draw normals of billboards.
     if (GetAsyncKeyState('2')) {
         drawAllRitemsFormatted(pCore, "ver_normal_visible",
             D3D_PRIMITIVE_TOPOLOGY_POINTLIST, pCore->materials["red"].get());
     }
     if (GetAsyncKeyState('3')) {
-        bool originFlag = pCore->ritems["trees"]->isVisible;
         drawAllRitemsFormatted(pCore, "tri_normal_visible",
             D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST, pCore->materials["green"].get());
     }
-    pCore->ritems["trees"]->isVisible = originFlag;
 
     // Post Processing.
     ID3D12Resource* processedOutput = nullptr;

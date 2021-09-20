@@ -19,6 +19,8 @@ using namespace Microsoft::WRL;
 
 struct ShaderFuncs {
     ComPtr<ID3DBlob> vs = nullptr;
+    ComPtr<ID3DBlob> hs = nullptr;
+    ComPtr<ID3DBlob> ds = nullptr;
     ComPtr<ID3DBlob> gs = nullptr;
     ComPtr<ID3DBlob> ps = nullptr;
     ComPtr<ID3DBlob> cs = nullptr;
@@ -26,6 +28,8 @@ struct ShaderFuncs {
 
 struct ShaderFuncEntryPoints {
     std::string vs = "VS";
+    std::string hs = "HS";
+    std::string ds = "DS";
     std::string gs = "GS";
     std::string ps = "PS";
     std::string cs = "CS";
@@ -35,7 +39,9 @@ class Shader {
     using FUNC_FLAG = unsigned char;
 public:
     static constexpr FUNC_FLAG VS = 1;
-    static constexpr FUNC_FLAG GS = VS << 1;
+    static constexpr FUNC_FLAG HS = VS << 1;
+    static constexpr FUNC_FLAG DS = HS << 1;
+    static constexpr FUNC_FLAG GS = DS << 1;
     static constexpr FUNC_FLAG PS = GS << 1;
     static constexpr FUNC_FLAG CS = PS << 1;
 
@@ -43,12 +49,16 @@ public:
     inline std::string name() { return _name; }
     inline std::wstring sourceFilename() { return _sourceFilename; }
     inline std::string vsEntryPoint() { return _entryPoints.vs; }
+    inline std::string hsEntryPoint() { return _entryPoints.hs; }
+    inline std::string dsEntryPoint() { return _entryPoints.ds; }
     inline std::string gsEntryPoint() { return _entryPoints.gs; }
     inline std::string psEntryPoint() { return _entryPoints.ps; }
     inline std::string csEntryPoint() { return _entryPoints.cs; }
 
     ShaderFuncs funcs = {};
     inline bool hasVS() { return _funcFlag & VS; }
+    inline bool hasHS() { return _funcFlag & HS; }
+    inline bool hasDS() { return _funcFlag & DS; }
     inline bool hasGS() { return _funcFlag & GS; }
     inline bool hasPS() { return _funcFlag & PS; }
     inline bool hasCS() { return _funcFlag & CS; }

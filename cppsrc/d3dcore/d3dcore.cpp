@@ -253,12 +253,6 @@ void createShaders(D3DCore* pCore) {
         Shader::VS | Shader::GS | Shader::PS,
         entryPoint);
 
-    pCore->shaders["billboard_cartoon"] = std::make_unique<Shader>(
-        "billboard",
-        L"shaders/effects/billboard-cartoon-gs.hlsl",
-        Shader::VS | Shader::GS | Shader::PS,
-        entryPoint);
-
     pCore->shaders["cylinder_generator"] = std::make_unique<Shader>(
         "cylinder_generator",
         L"shaders/test-demos/cylinder-generator-gs.hlsl",
@@ -281,6 +275,12 @@ void createShaders(D3DCore* pCore) {
         "tri_normal_visible",
         L"shaders/others/tri-normal-visible-gs.hlsl",
         Shader::VS | Shader::GS | Shader::PS,
+        entryPoint);
+
+    pCore->shaders["hill_tessellation"] = std::make_unique<Shader>(
+        "hill_tessellation",
+        L"shaders/test-demos/hill-tessellation.hlsl",
+        Shader::VS | Shader::HS | Shader::DS | Shader::PS,
         entryPoint);
 }
 
@@ -416,9 +416,6 @@ void createPSOs(D3DCore* pCore) {
     billboardGsPsoDesc.BlendState.AlphaToCoverageEnable = true;
     billboardGsPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
     checkHR(pCore->device->CreateGraphicsPipelineState(&billboardGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["billboard"])));
-    // Billboard Geometry Shader in Cartoon Style
-    bindShaderToPSO(&billboardGsPsoDesc, pCore->shaders["billboard_cartoon"].get());
-    checkHR(pCore->device->CreateGraphicsPipelineState(&billboardGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["billboard_cartoon"])));
 
     // Cylinder Generator Geometry Shader
     D3D12_GRAPHICS_PIPELINE_STATE_DESC cylinderGeneratorGsPsoDesc = solidPsoDesc;
@@ -442,6 +439,15 @@ void createPSOs(D3DCore* pCore) {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC triNormalVisibleGsPsoDesc = solidPsoDesc;
     bindShaderToPSO(&triNormalVisibleGsPsoDesc, pCore->shaders["tri_normal_visible"].get());
     checkHR(pCore->device->CreateGraphicsPipelineState(&triNormalVisibleGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["tri_normal_visible"])));
+
+    // Hill Tessellation Hull Shader and Domain Shader
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC hillTessellationPsoDesc = solidPsoDesc;
+    bindShaderToPSO(&hillTessellationPsoDesc, pCore->shaders["hill_tessellation"].get());
+    hillTessellationPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;
+    checkHR(pCore->device->CreateGraphicsPipelineState(&hillTessellationPsoDesc, IID_PPV_ARGS(&pCore->PSOs["hill_tessellation"])));
+
+    hillTessellationPsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
+    checkHR(pCore->device->CreateGraphicsPipelineState(&hillTessellationPsoDesc, IID_PPV_ARGS(&pCore->PSOs["hill_tessellation_wireframe"])));
 }
 
 void createBasicMaterials(D3DCore* pCore) {
@@ -721,7 +727,7 @@ void createRenderItemLayers(D3DCore* pCore) {
     // Simply put, the name in front is drawn first. For example, solid layer is the first to draw.
     std::string ritemLayerNames[] = {
         // General
-        "solid", "cartoon", "wireframe",
+        "solid", "cartoon", "wireframe", "hill_tessellation", "hill_tessellation_wireframe",
         // Geometry Shader
         "subdivision", "billboard", "billboard_cartoon", "cylinder_generator", "explosion_animation",
         "ver_normal_visible", "tri_normal_visible",

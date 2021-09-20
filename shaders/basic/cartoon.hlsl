@@ -6,8 +6,6 @@
 ** yiyaowen (c) 2021 All Rights Reserved.
 */
 
-// This is the default shader for render station program. ('rs' means 'render station')
-
 #include "light-utils.hlsl"
 
 cbuffer cbPerObject : register(b0)
