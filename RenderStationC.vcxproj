@@ -194,6 +194,8 @@
     <ClCompile Include="cppsrc\modifier\wave-simulator.cpp" />
     <ClCompile Include="cppsrc\postprocessing\bilateral-blur.cpp" />
     <ClCompile Include="cppsrc\postprocessing\basic-process.cpp" />
+    <ClCompile Include="cppsrc\postprocessing\color-compositor.cpp" />
+    <ClCompile Include="cppsrc\postprocessing\sobel-operator.cpp" />
     <ClCompile Include="cppsrc\widgets\camera.cpp" />
     <ClCompile Include="cppsrc\d3dcore\d3dcore.cpp" />
     <ClCompile Include="cppsrc\toolbox\DDSTextureLoader.cpp" />
@@ -213,6 +215,8 @@
     <ClInclude Include="cppsrc\modifier\wave-simulator.h" />
     <ClInclude Include="cppsrc\postprocessing\bilateral-blur.h" />
     <ClInclude Include="cppsrc\postprocessing\basic-process.h" />
+    <ClInclude Include="cppsrc\postprocessing\color-compositor.h" />
+    <ClInclude Include="cppsrc\postprocessing\sobel-operator.h" />
     <ClInclude Include="cppsrc\widgets\camera.h" />
     <ClInclude Include="cppsrc\d3dcore\d3dcore.h" />
     <ClInclude Include="cppsrc\toolbox\d3dx12.h" />
@@ -266,6 +270,21 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\postprocessing\bilateral-blur.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\cs-optimization\wave-simulation.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\postprocessing\sobel-operator.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\postprocessing\color-compositor.hlsl">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

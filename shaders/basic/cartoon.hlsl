@@ -1,5 +1,5 @@
 /*
-** Render Station @ https://gitee.com/yiyaowen/render-station
+** Render Station @ https://github.com/yiyaowen/render-station
 **
 ** Create fantastic animation and game.
 **
@@ -15,6 +15,9 @@ cbuffer cbPerObject : register(b0)
 	float4x4 gWorld;
 	float4x4 gInvTrWorld;
 	float4x4 gTexTrans;
+
+	int gHasDisplacementMap;
+	int gHasNormalMap;
 };
 
 cbuffer cbGlobalProc : register(b1)
@@ -46,6 +49,10 @@ cbuffer cbMaterial : register(b2)
 
 Texture2D gDiffuseMap : register(t0);
 
+Texture2D gDisplacementMap : register(t1);
+
+Texture2D gNormalMap : register(t2);
+
 // gsam: global sampler
 SamplerState gsamPointWrap        : register(s0);
 SamplerState gsamPointClamp       : register(s1);
@@ -56,7 +63,7 @@ SamplerState gsamAnisotropicClamp : register(s5);
 
 struct VertexIn
 {
-	float3 posL  : POSITION;
+	float3 posL : POSITION;
 	float3 normalL : NORMAL;
 	float2 uv : TEXCOORD;
 	float2 size : SIZE;
@@ -64,7 +71,7 @@ struct VertexIn
 
 struct VertexOut
 {
-	float4 posH  : SV_POSITION;
+	float4 posH : SV_POSITION;
 	float3 posW : POSITION;
 	float3 normalW : NORMAL;
 	float2 uv : TEXCOORD;
@@ -72,8 +79,19 @@ struct VertexOut
 
 VertexOut VS(VertexIn vin)
 {
-	VertexOut vout;
+	VertexOut vout = (VertexOut)0.0f;
 
+	// Apply displacement and normal map.
+	if (gHasDisplacementMap == 1)
+	{
+		vin.posL += gDisplacementMap.SampleLevel(gsamLinearWrap, vin.uv, 1.0f);
+	}
+	if (gHasNormalMap == 1)
+	{
+		vin.normalL = gNormalMap.SampleLevel(gsamLinearWrap, vin.uv, 1.0f);
+	}
+
+	// General VS works.
 	float4 posW = mul(mul(float4(vin.posL, 1.0f), gWorld), gReflectTrans);
 	vout.posH = mul(mul(posW, gView), gProj);
 	vout.posW = posW.xyz;

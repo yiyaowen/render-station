@@ -1,5 +1,5 @@
 /*
-** Render Station @ https://gitee.com/yiyaowen/render-station
+** Render Station @ https://github.com/yiyaowen/render-station
 **
 ** Create fantastic animation and game.
 **

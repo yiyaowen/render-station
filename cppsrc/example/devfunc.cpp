@@ -1,5 +1,5 @@
 /*
-** Render Station @ https://gitee.com/yiyaowen/render-station
+** Render Station @ https://github.com/yiyaowen/render-station
 **
 ** Create fantastic animation and game.
 **
@@ -12,7 +12,9 @@
 #include "devfunc.h"
 #include "modifier/wave-simulator.h"
 #include "postprocessing/bilateral-blur.h"
+#include "postprocessing/color-compositor.h"
 #include "postprocessing/gaussian-blur.h"
+#include "postprocessing/sobel-operator.h"
 #include "utils/debugger.h"
 #include "utils/frame-async-utils.h"
 #include "utils/render-item-utils.h"
@@ -31,6 +33,8 @@ void dev_initCoreElems(D3DCore* pCore) {
     box->materials = { pCore->materials["fence"].get() };
     moveNamedRitemToAllRitems(pCore, "box", std::move(box));
     bindRitemReferenceWithLayers(pCore, "box", { {"alpha_test", 0} });
+    bindRitemReferenceWithLayers(pCore, "box", { {"wireframe", 0} });
+    //pCore->ritems["box"]->isVisible = false;
 
     // Hill 1
     auto hillGeo = std::make_unique<ObjectGeometry>();
@@ -42,6 +46,8 @@ void dev_initCoreElems(D3DCore* pCore) {
     hill->materials = { pCore->materials["grass"].get() };
     moveNamedRitemToAllRitems(pCore, "hill", std::move(hill));
     bindRitemReferenceWithLayers(pCore, "hill", { {"solid", 0} });
+    bindRitemReferenceWithLayers(pCore, "hill", { {"wireframe", 0} });
+    //pCore->ritems["hill"]->isVisible = false;
     // Hill 2
     rotateObjectGeometry(0.0f, 130.0f * XM_2PI / 360.0f, 0.0f, hillGeo.get());
     translateObjectGeometry(0.0f, -5.0f, 0.0f, hillGeo.get());
@@ -50,9 +56,11 @@ void dev_initCoreElems(D3DCore* pCore) {
     hill2->materials = { pCore->materials["grass"].get() };
     moveNamedRitemToAllRitems(pCore, "hill2", std::move(hill2));
     bindRitemReferenceWithLayers(pCore, "hill2", { {"solid", 0} });
+    bindRitemReferenceWithLayers(pCore, "hill2", { {"wireframe", 0} });
+    //pCore->ritems["hill2"]->isVisible = false;
 
     auto lakeGeo = std::make_unique<ObjectGeometry>();
-    generateGrid(100.0f, 100.0f, 100, 100, lakeGeo.get());
+    generateGrid(100.0f, 100.0f, 256, 256, lakeGeo.get());
     rotateObjectGeometry(-XM_PIDIV2, 0.0f, 0.0f, lakeGeo.get());
     translateObjectGeometry(0.0f, -0.2f, 0.0f, lakeGeo.get());
     auto lake = std::make_unique<RenderItem>();
@@ -61,23 +69,27 @@ void dev_initCoreElems(D3DCore* pCore) {
     // Lake ritem is marked as dynamic to simulate wave animation.
     lake->isDynamic = true;
     lake->modifiers["wave"] = std::make_unique<WaveSimulator>(pCore,
-        lake->mesh.get(),
-        100.0f / (2 * 100), // The distance between two adjacent vertices in the grid.
-        100, // Half horizontal node count.
-        100, // Half vertical node count.
+        lake.get(), // Initial target render item.
+        100.0f / (2 * 256), // The distance between two adjacent vertices in the grid.
+        256, // Half horizontal node count.
+        256, // Half vertical node count.
         lakeGeo.get(),
         8.0f, // The spread velocity of wave.
-        0.2f, // The damping grade with velocity dimension.
-        0.1f, // The min disturbance height.
-        0.2f, // The max disturbance height.
-        0.1f); // The interval seconds between 2 random disturbance.
+        0.15f, // The damping grade with velocity dimension.
+        0.4f, // The min disturbance height.
+        0.5f, // The max disturbance height.
+        0.01f, // The interval seconds between 2 random disturbance.
+        false); // TRUE to enable GPU CS optimization. FALSE to use CPU general computation.
     //lake->modifiers["wave"]->setActived(false);
     moveNamedRitemToAllRitems(pCore, "lake", std::move(lake));
     bindRitemReferenceWithLayers(pCore, "lake", { {"alpha", 0} });
+    bindRitemReferenceWithLayers(pCore, "lake", { {"alpha_cartoon", 0} });
+    bindRitemReferenceWithLayers(pCore, "lake", { {"wireframe", 0} });
+    //pCore->ritems["water"]->isVisible = false;
 
     auto treesGeo = std::make_unique<ObjectGeometry>();
     std::vector<Vertex> treeVertices;
-    std::vector<UINT16> treeIndicies;
+    std::vector<UINT32> treeIndicies;
     for (int i = 0; i < 200; ++i) {
         float randX = randfloat(-40.0f, 40.0f);
         float randZ = 0.0f;
@@ -94,6 +106,7 @@ void dev_initCoreElems(D3DCore* pCore) {
     trees->materials = { pCore->materials["trees"].get() };
     moveNamedRitemToAllRitems(pCore, "trees", std::move(trees));
     bindRitemReferenceWithLayers(pCore, "trees", { {"billboard", 0} });
+    //pCore->ritems["trees"]->isVisible = false;
 
     updateRitemRangeObjConstBuffIdx(pCore->allRitems.data(), pCore->allRitems.size());
 
@@ -103,6 +116,8 @@ void dev_initCoreElems(D3DCore* pCore) {
     // Initialiez all postprocess effects.
     pCore->postprocessors["gaussian_blur"] = std::make_unique<GaussianBlur>(pCore, 5, 256.0f, 1);
     pCore->postprocessors["bilateral_blur"] = std::make_unique<BilateralBlur>(pCore, 5, 256.0f, 0.1f, 1);
+    pCore->postprocessors["sobel_operator"] = std::make_unique<SobelOperator>(pCore);
+    pCore->postprocessors["color_compositor"] = std::make_unique<ColorCompositor>(pCore);
 
     // Init all created postprocessors.
     for (auto p = pCore->postprocessors.begin(); p != pCore->postprocessors.end(); ++p)
@@ -116,6 +131,8 @@ void dev_updateCoreObjConsts(D3DCore* pCore) {
     auto lakeTexMat = lakeTexTransMat * lakeTexScaleMat;
     XMStoreFloat4x4(&pCore->ritems["lake"]->constData[0].texTrans,
         XMMatrixTranspose(lakeTexMat));
+    pCore->ritems["lake"]->constData[0].hasDisplacementMap = pCore->ritems["lake"]->hasDisplacementMap;
+    pCore->ritems["lake"]->constData[0].hasNormalMap = pCore->ritems["lake"]->hasNormalMap;
     pCore->ritems["lake"]->numDirtyFrames = NUM_FRAME_RESOURCES;
 
     // Apply updates.
@@ -223,11 +240,11 @@ void dev_updateCoreData(D3DCore* pCore) {
     checkHR(pCore->currFrameResource->cmdAlloc->Reset());
     checkHR(pCore->cmdList->Reset(pCore->currFrameResource->cmdAlloc.Get(), nullptr));
 
+    dev_updateCoreDynamicMesh(pCore); // The update will be executed with command queue.
+
     dev_updateCoreObjConsts(pCore);
     dev_updateCoreProcConsts(pCore);
     dev_updateCoreMatConsts(pCore);
-
-    dev_updateCoreDynamicMesh(pCore); // The update will be executed with command queue.
 }
 
 void dev_drawCoreElems(D3DCore* pCore) {
@@ -249,32 +266,55 @@ void dev_drawCoreElems(D3DCore* pCore) {
 
     // Firstly draw all objects on MSAA back buffer.
     clearBackBuff(msaaRtvDescHandle, Colors::SkyBlue, dsvDescHanlde, 1.0f, 0, pCore);
-    drawRitemLayerWithName(pCore, "solid");
-    drawRitemLayerWithName(pCore, "billboard");
-    drawRitemLayerWithName(pCore, "alpha_test");
-    drawRitemLayerWithName(pCore, "alpha");
-
-    // There is no need to draw normals of billboards.
+    // Switch between solid mode and wireframe mode.
     if (GetAsyncKeyState('1')) {
-        pCore->ritems["trees"]->isVisible = false;
+        drawRitemLayerWithName(pCore, "wireframe");
+    }
+    else {
+        drawRitemLayerWithName(pCore, "solid");
+        drawRitemLayerWithName(pCore, "billboard");
+        drawRitemLayerWithName(pCore, "alpha_test");
+        if (GetAsyncKeyState('0')) {
+            drawRitemLayerWithName(pCore, "alpha_cartoon");
+        }
+        else {
+            drawRitemLayerWithName(pCore, "alpha");
+        }
+    }
+
+    bool originFlag = pCore->ritems["trees"]->isVisible;
+    pCore->ritems["trees"]->isVisible = false;
+    // There is no need to draw normals of billboards.
+    if (GetAsyncKeyState('2')) {
         drawAllRitemsFormatted(pCore, "ver_normal_visible",
             D3D_PRIMITIVE_TOPOLOGY_POINTLIST, pCore->materials["red"].get());
-        pCore->ritems["trees"]->isVisible = true;
     }
-    if (GetAsyncKeyState('2')) {
-        pCore->ritems["trees"]->isVisible = false;
+    if (GetAsyncKeyState('3')) {
+        bool originFlag = pCore->ritems["trees"]->isVisible;
         drawAllRitemsFormatted(pCore, "tri_normal_visible",
             D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST, pCore->materials["green"].get());
-        pCore->ritems["trees"]->isVisible = true;
     }
+    pCore->ritems["trees"]->isVisible = originFlag;
 
+    // Post Processing.
     ID3D12Resource* processedOutput = nullptr;
     processedOutput = pCore->postprocessors["basic"]->process(pCore->msaaBackBuff.Get());
-    if (GetAsyncKeyState('3')) {
+
+    if (GetAsyncKeyState('4')) {
         processedOutput = pCore->postprocessors["gaussian_blur"]->process(processedOutput);
     }
-    if (GetAsyncKeyState('4')) {
+    if (GetAsyncKeyState('5')) {
         processedOutput = pCore->postprocessors["bilateral_blur"]->process(processedOutput);
+    }
+
+    if (GetAsyncKeyState('6')) {
+        processedOutput = pCore->postprocessors["sobel_operator"]->process(processedOutput);
+    }
+    else if (GetAsyncKeyState('7')) {
+        auto sobelOutput = pCore->postprocessors["sobel_operator"]->process(processedOutput);
+        ((ColorCompositor*)pCore->postprocessors["color_compositor"].get())
+            ->bindBackgroundPlate(sobelOutput, ColorCompositor::MULTIPLY, 1.0f);
+        processedOutput = pCore->postprocessors["color_compositor"]->process(processedOutput);
     }
 
     // Write final processed output into swap chain back buffer.
@@ -348,24 +388,46 @@ void updateRenderWindowCaptionInfo(D3DCore* pCore) {
     std::wstring caption = L"Render Station 渲染工坊 @ MSPF 每帧时间（毫秒）: " +
         std::to_wstring(MSPF) + L", FPS 帧率: " + std::to_wstring(FPS);
 
-    // Vertex normal visible.
     if (GetAsyncKeyState('1')) {
+        caption += L", Wireframe Mode 线框模式";
+    }
+
+    // Vertex normal visible.
+    if (GetAsyncKeyState('2')) {
         caption += L", Vertex Normal Visible 顶点法线可视化（红色）";
     }
 
     // Triangle normal visible.
-    if (GetAsyncKeyState('2')) {
+    if (GetAsyncKeyState('3')) {
         caption += L", Triangle Normal Visible 面法线可视化（绿色）";
     }
 
     // Gaussian blur.
-    if (GetAsyncKeyState('3')) {
+    if (GetAsyncKeyState('4')) {
         caption += L", Gaussian Blur 高斯模糊滤镜";
     }
 
     // Bilateral blur.
-    if (GetAsyncKeyState('4')) {
+    if (GetAsyncKeyState('5')) {
         caption += L", Bilateral Blur 双边模糊滤镜";
+    }
+
+    // Sobel operator.
+    if (GetAsyncKeyState('6')) {
+        caption += L", Sobel Operator 索贝尔轮廓算子";
+        if (GetAsyncKeyState(VK_SPACE)) {
+            caption += L"（白色画笔）";
+        }
+        else {
+            caption += L"（黑色画笔）";
+        }
+    }
+    else if (GetAsyncKeyState('7')) {
+        caption += L", Outline Overlay 描边风格滤镜";
+    }
+
+    if (GetAsyncKeyState('0')) {
+        caption += L", Cartoon Water 卡通水面";
     }
 
     SetWindowText(hWnd, caption.c_str());

@@ -1,5 +1,5 @@
 /*
-** Render Station @ https://gitee.com/yiyaowen/render-station
+** Render Station @ https://github.com/yiyaowen/render-station
 **
 ** Create fantastic animation and game.
 **
@@ -157,6 +157,6 @@ void copyStatedResource(D3DCore* pCore,
     ID3D12Resource* src, D3D12_RESOURCE_STATES srcState);
 
 void uploadStatedResource(D3DCore* pCore,
-    ID3D12Resource* buffer, D3D12_RESOURCE_STATES bufferState,
+    ID3D12Resource* resource, D3D12_RESOURCE_STATES resourceState,
     ID3D12Resource* intermidiate, D3D12_RESOURCE_STATES intermidiateState,
     const void* data, UINT64 byteSize);

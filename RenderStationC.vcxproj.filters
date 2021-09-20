@@ -30,6 +30,9 @@
     <None Include="shaders\test-demos\vec-length-demo-cs.hlsl" />
     <None Include="shaders\postprocessing\bilateral-blur-sdf.hlsl" />
     <None Include="shaders\postprocessing\bilateral-blur.hlsl" />
+    <None Include="shaders\cs-optimization\wave-simulation.hlsl" />
+    <None Include="shaders\postprocessing\sobel-operator.hlsl" />
+    <None Include="shaders\postprocessing\color-compositor.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cppsrc\widgets\camera.cpp">
@@ -81,6 +84,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="cppsrc\modifier\wave-simulator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="cppsrc\postprocessing\sobel-operator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="cppsrc\postprocessing\color-compositor.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -155,6 +164,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="cppsrc\modifier\wave-simulator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cppsrc\postprocessing\sobel-operator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cppsrc\postprocessing\color-compositor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

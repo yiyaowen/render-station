@@ -1,5 +1,5 @@
 /*
-** Render Station @ https://gitee.com/yiyaowen/render-station
+** Render Station @ https://github.com/yiyaowen/render-station
 **
 ** Create fantastic animation and game.
 **
@@ -207,19 +207,21 @@ void createRootSig(D3DCore* pCore, const std::string& name, D3D12_ROOT_SIGNATURE
 
 void createRootSigs(D3DCore* pCore) {
     // Main default root signature.
-    CD3DX12_ROOT_PARAMETER slotRootParameter[4];
+    CD3DX12_ROOT_PARAMETER slotRootParameter[6];
 
     slotRootParameter[0].InitAsConstantBufferView(0);
     slotRootParameter[1].InitAsConstantBufferView(1);
     slotRootParameter[2].InitAsConstantBufferView(2);
-    CD3DX12_DESCRIPTOR_RANGE texTable;
-    texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-    slotRootParameter[3].InitAsDescriptorTable(1, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);
+    CD3DX12_DESCRIPTOR_RANGE texTable[3];
+    for (int i = 0; i < 3; ++i) {
+        texTable[i].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, i);
+        slotRootParameter[i + 3].InitAsDescriptorTable(1, &texTable[i], D3D12_SHADER_VISIBILITY_ALL);
+    }
 
     auto samplers = generateStaticSamplers();
 
     // A root signature is an array of root parameters.
-    CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(4, slotRootParameter, samplers.size(), samplers.data(),
+    CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(6, slotRootParameter, samplers.size(), samplers.data(),
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
     createRootSig(pCore, "main", &rootSigDesc);
 }
@@ -924,7 +926,7 @@ void copyStatedResource(D3DCore* pCore,
 }
 
 void uploadStatedResource(D3DCore* pCore,
-    ID3D12Resource* buffer, D3D12_RESOURCE_STATES bufferState,
+    ID3D12Resource* resource, D3D12_RESOURCE_STATES resourceState,
     ID3D12Resource* intermidiate, D3D12_RESOURCE_STATES intermidiateState,
     const void* data, UINT64 byteSize)
 {
@@ -936,20 +938,20 @@ void uploadStatedResource(D3DCore* pCore,
     // Note UpdateSubresources func is essentially a GPU operation, which must be invoked
     // after reset the command list. We also need to close the command list to finish the
     // command pushing and flush the command queue to wait for all data to be uploaded.
-    if (bufferState != D3D12_RESOURCE_STATE_COPY_DEST) {
-        pCore->cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(buffer,
-            bufferState, D3D12_RESOURCE_STATE_COPY_DEST));
+    if (resourceState != D3D12_RESOURCE_STATE_COPY_DEST) {
+        pCore->cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resource,
+            resourceState, D3D12_RESOURCE_STATE_COPY_DEST));
     }
     if (intermidiateState != D3D12_RESOURCE_STATE_GENERIC_READ) {
         pCore->cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(intermidiate,
             intermidiateState, D3D12_RESOURCE_STATE_GENERIC_READ));
     }
 
-    UpdateSubresources<1>(pCore->cmdList.Get(), buffer, intermidiate, 0, 0, 1, &subResourceData);
+    UpdateSubresources<1>(pCore->cmdList.Get(), resource, intermidiate, 0, 0, 1, &subResourceData);
 
-    if (bufferState != D3D12_RESOURCE_STATE_COPY_DEST) {
-        pCore->cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(buffer,
-            D3D12_RESOURCE_STATE_COPY_DEST, bufferState));
+    if (resourceState != D3D12_RESOURCE_STATE_COPY_DEST) {
+        pCore->cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resource,
+            D3D12_RESOURCE_STATE_COPY_DEST, resourceState));
     }
     if (intermidiateState != D3D12_RESOURCE_STATE_GENERIC_READ) {
         pCore->cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(intermidiate,

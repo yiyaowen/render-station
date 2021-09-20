@@ -1,5 +1,5 @@
 /*
-** Render Station @ https://gitee.com/yiyaowen/render-station
+** Render Station @ https://github.com/yiyaowen/render-station
 **
 ** Create fantastic animation and game.
 **
@@ -13,7 +13,7 @@
 class WaveSimulator : public Modifier {
 public:
 	WaveSimulator(D3DCore* pCore,
-		Vmesh* mesh, // Initial target mesh. There is no problem to set it to null and change the mesh later.
+		RenderItem* ritem, // Initial target render item.
 		float d, // The distance between two adjacent vertices in the grid.
 		UINT m, // Half horizontal node count. See geometry-utils.cpp for generateGrid(xxx).
 		UINT n, // Half vertical node count. See geometry-utils.cpp for generateGrid(xxx).
@@ -22,12 +22,52 @@ public:
 		float u, // The damping grade with velocity dimension.
 		float hmin, // The mi ndisturbance height.
 		float hmax, // The max disturbance height.
-		float t); // The interval seconds between 2 random disturbance.
+		float t, // The interval seconds between 2 random disturbance.
+		bool optimized); // TRUE to enable GPU CS optimization. FALSE to use CPU general computation.
 
 	// Inovke Update() every frame to simulate a wave animation.
 	void update() override;
 
 private:
+	bool _optimized = true;
+
+	void updateWithCPUGeneralCompute();
+
+	// GPU optimization.
+
+	void initComputeShaderResources();
+
+	void createRootSignatureAndCpso();
+
+	void createGridNodeTextures();
+
+	void createResourceHeap();
+
+	void createResourceDescriptors();
+
+	void updateWithComputeShaderOptimized();
+
+	std::unique_ptr<Shader> s_disturbWave = nullptr;
+	std::unique_ptr<Shader> s_calcDisplacement = nullptr;
+	std::unique_ptr<Shader> s_calcNormal = nullptr;
+
+	ComPtr<ID3D12DescriptorHeap> descHeap = nullptr;
+
+	ComPtr<ID3D12Resource> prevResource = nullptr, currResource = nullptr, nextResource = nullptr;
+	ComPtr<ID3D12Resource> displacementMap = nullptr, normalMap = nullptr;
+
+	D3D12_CPU_DESCRIPTOR_HANDLE prevUav_CPU = {}, currUav_CPU = {}, nextUav_CPU = {};
+	D3D12_GPU_DESCRIPTOR_HANDLE prevUav_GPU = {}, currUav_GPU = {}, nextUav_GPU = {};
+	D3D12_CPU_DESCRIPTOR_HANDLE displacementSrv_CPU = {}, displacementUav_CPU = {},
+		normalSrv_CPU = {}, normalUav_CPU = {};
+	D3D12_GPU_DESCRIPTOR_HANDLE displacementSrv_GPU = {}, displacementUav_GPU = {},
+		normalSrv_GPU = {}, normalUav_GPU = {};
+
+private:
+	D3DCore* pCore = nullptr;
+
+	RenderItem* ritem = nullptr;
+
 	UINT _m = 0, _n = 0, _M = 0, _N = 0;
 
 	float _d = 0.0f; // The distance between two adjacent vertices in the grid.

@@ -1,5 +1,5 @@
 /*
-** Render Station @ https://gitee.com/yiyaowen/render-station
+** Render Station @ https://github.com/yiyaowen/render-station
 **
 ** Create fantastic animation and game.
 **
@@ -74,6 +74,9 @@ struct ObjConsts {
     XMFLOAT4X4 worldTrans = makeIdentityFloat4x4();
     XMFLOAT4X4 invTrWorldTrans = makeIdentityFloat4x4(); // Tr: Transpose
     XMFLOAT4X4 texTrans = makeIdentityFloat4x4();
+
+    int hasDisplacementMap = 0;
+    int hasNormalMap = 0;
 };
 
 struct ProcConsts {

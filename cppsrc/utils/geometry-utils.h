@@ -1,5 +1,5 @@
 /*
-** Render Station @ https://gitee.com/yiyaowen/render-station
+** Render Station @ https://github.com/yiyaowen/render-station
 **
 ** Create fantastic animation and game.
 **
@@ -13,10 +13,10 @@
 
 struct ObjectGeometry {
     std::vector<Vertex> vertices;
-    std::vector<UINT16> indices;
+    std::vector<UINT32> indices;
     Vsubmesh locationInfo;
     UINT64 vertexDataSize() { return vertices.size() * sizeof(Vertex); }
-    UINT64 indexDataSize() { return indices.size() * sizeof(UINT16); }
+    UINT64 indexDataSize() { return indices.size() * sizeof(UINT32); }
 };
 
 ObjectGeometry* copyObjectGeometry(ObjectGeometry* source);
@@ -42,7 +42,7 @@ void updateVertexNormals(ObjectGeometry* geo);
 // Note this func only changes the vertices and indices data and other data may be dirty.
 void subdivide(ObjectGeometry* geo);
 
-void appendVerticesToObjectGeometry(const std::vector<Vertex>& ver, const std::vector<UINT16>& idx, ObjectGeometry* objGeo);
+void appendVerticesToObjectGeometry(const std::vector<Vertex>& ver, const std::vector<UINT32>& idx, ObjectGeometry* objGeo);
 
 void generateCube(XMFLOAT3 xyz, ObjectGeometry* cube);
 

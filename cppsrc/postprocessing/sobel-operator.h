@@ -12,27 +12,15 @@
 #include "basic-process.h"
 #include "graphics/shader.h"
 
-class BilateralBlur : public BasicProcess {
+class SobelOperator : public BasicProcess {
 public:
-    BilateralBlur(D3DCore* pCore, int blurRadius, float distanceGrade, float grayGrade, int blurCount);
+    SobelOperator(D3DCore* pCore);
 
     void init() override;
 
     void onResize(UINT w, UINT h) override;
 
     ID3D12Resource* process(ID3D12Resource* flatOrigin) override;
-
-    inline int blurRadius() { return _blurRadius; }
-    inline void setBlurRadius(int r) { _blurRadius = r; }
-
-    inline float distanceGrade() { return _distanceGrade; }
-    inline void setDistanceGrade(float g) { _distanceGrade = g; }
-
-    inline float grayGrade() { return _grayGrade; }
-    inline void setGrayGrade(float g) { _grayGrade = g; }
-
-    inline int blurCount() { return _blurCount; }
-    inline void setBlurCount(int c) { _blurCount = c; }
 
 protected:
     void createOffscreenTextureResources() override;
@@ -48,21 +36,15 @@ private:
     void createResourceDescriptors();
 
 private:
-    int _blurRadius = 0;
-    float _distanceGrade = 0.0f;
-    float _grayGrade = 0.0f;
-    int _blurCount = 0;
-
-    float _twoSigma2 = 0.0f;
-
-    std::unique_ptr<Shader> s_bilateralBlur = nullptr;
+    std::unique_ptr<Shader> s_sobelOperator = nullptr;
 
     ComPtr<ID3D12DescriptorHeap> texDescHeap = nullptr;
 
     D3D12_CPU_DESCRIPTOR_HANDLE
-        texA_SrvCPU = {}, texA_UavCPU = {},
-        texB_SrvCPU = {}, texB_UavCPU = {};
+        texA_SrvCPU = {}, texB_UavCPU = {};
     D3D12_GPU_DESCRIPTOR_HANDLE
-        texA_SrvGPU = {}, texA_UavGPU = {},
-        texB_SrvGPU = {}, texB_UavGPU = {};
+        texA_SrvGPU = {}, texB_UavGPU = {};
+
+    constexpr static int BLACK_ON_WHITE = 0;
+    constexpr static int WHITE_ON_BLACK = 1;
 };

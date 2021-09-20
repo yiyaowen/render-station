@@ -1,5 +1,5 @@
 /*
-** Render Station @ https://gitee.com/yiyaowen/render-station
+** Render Station @ https://github.com/yiyaowen/render-station
 **
 ** Create fantastic animation and game.
 **
@@ -56,9 +56,9 @@ void updateVertexNormals(ObjectGeometry* geo) {
     auto pIdx = geo->indices.data();
     size_t idxCount = geo->indices.size();
     for (size_t i = 0; i * 3 + 2 < idxCount; ++i) {
-        UINT16 i0 = pIdx[i * 3];
-        UINT16 i1 = pIdx[i * 3 + 1];
-        UINT16 i2 = pIdx[i * 3 + 2];
+        UINT32 i0 = pIdx[i * 3];
+        UINT32 i1 = pIdx[i * 3 + 1];
+        UINT32 i2 = pIdx[i * 3 + 2];
 
         Vertex v0 = pVer[i0];
         Vertex v1 = pVer[i1];
@@ -110,7 +110,7 @@ void subdivide(ObjectGeometry* geo) {
         geo->vertices.push_back({ v2.pos });                   // i * 6 + 4
         geo->vertices.push_back({ midpoint(v2.pos, v0.pos) }); // i * 6 + 5
 
-        UINT16 b = i * 6; // base index
+        UINT32 b = i * 6; // base index
         geo->indices.push_back(b);
         geo->indices.push_back(b + 1);
         geo->indices.push_back(b + 5);
@@ -129,7 +129,7 @@ void subdivide(ObjectGeometry* geo) {
     }
 }
 
-void appendVerticesToObjectGeometry(const std::vector<Vertex>& ver, const std::vector<UINT16>& idx, ObjectGeometry* objGeo) {
+void appendVerticesToObjectGeometry(const std::vector<Vertex>& ver, const std::vector<UINT32>& idx, ObjectGeometry* objGeo) {
     UINT count = max(ver.size(), idx.size());
     for (UINT i = 0; i < count; ++i) {
         objGeo->vertices.push_back(ver[i]);

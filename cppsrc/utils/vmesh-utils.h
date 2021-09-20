@@ -1,5 +1,5 @@
 /*
-** Render Station @ https://gitee.com/yiyaowen/render-station
+** Render Station @ https://github.com/yiyaowen/render-station
 **
 ** Create fantastic animation and game.
 **
@@ -16,3 +16,6 @@ void createDefaultBuffs(D3DCore* pCore, const void* initData, UINT64 byteSize,
     ID3DBlob** ppBuffCPU, ID3D12Resource** ppBuffGPU, ID3D12Resource** ppUploadBuff);
 
 Vmesh* copyVmesh(D3DCore* pCore, const Vmesh* source);
+
+void createDefaultTexs(D3DCore* pCore, const void* initData, UINT64 byteSize,
+    D3D12_RESOURCE_DESC* texDesc, ID3DBlob** ppTexBlob, ID3D12Resource** ppTexGPU, ID3D12Resource** ppUploadBuff);

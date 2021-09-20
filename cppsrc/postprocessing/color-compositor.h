@@ -12,9 +12,9 @@
 #include "basic-process.h"
 #include "graphics/shader.h"
 
-class BilateralBlur : public BasicProcess {
+class ColorCompositor : public BasicProcess {
 public:
-    BilateralBlur(D3DCore* pCore, int blurRadius, float distanceGrade, float grayGrade, int blurCount);
+    ColorCompositor(D3DCore* pCore);
 
     void init() override;
 
@@ -22,17 +22,11 @@ public:
 
     ID3D12Resource* process(ID3D12Resource* flatOrigin) override;
 
-    inline int blurRadius() { return _blurRadius; }
-    inline void setBlurRadius(int r) { _blurRadius = r; }
+    // Weight should range from 0.0f ~ 1.0f. Result = Bkgn(weight) MIX ORIGIN(1-weight).
+    void bindBackgroundPlate(ID3D12Resource* bkgn, int mixType, float weight);
 
-    inline float distanceGrade() { return _distanceGrade; }
-    inline void setDistanceGrade(float g) { _distanceGrade = g; }
-
-    inline float grayGrade() { return _grayGrade; }
-    inline void setGrayGrade(float g) { _grayGrade = g; }
-
-    inline int blurCount() { return _blurCount; }
-    inline void setBlurCount(int c) { _blurCount = c; }
+    inline float bkgnWeight() { return _weight; }
+    inline float setBkgnWeight(float value) { _weight = value; }
 
 protected:
     void createOffscreenTextureResources() override;
@@ -48,21 +42,20 @@ private:
     void createResourceDescriptors();
 
 private:
-    int _blurRadius = 0;
-    float _distanceGrade = 0.0f;
-    float _grayGrade = 0.0f;
-    int _blurCount = 0;
-
-    float _twoSigma2 = 0.0f;
-
-    std::unique_ptr<Shader> s_bilateralBlur = nullptr;
+    std::unique_ptr<Shader> s_mixer = nullptr;
 
     ComPtr<ID3D12DescriptorHeap> texDescHeap = nullptr;
 
     D3D12_CPU_DESCRIPTOR_HANDLE
-        texA_SrvCPU = {}, texA_UavCPU = {},
-        texB_SrvCPU = {}, texB_UavCPU = {};
+        texA_SrvCPU = {}, texB_SrvCPU = {}, texC_UavCPU = {};
     D3D12_GPU_DESCRIPTOR_HANDLE
-        texA_SrvGPU = {}, texA_UavGPU = {},
-        texB_SrvGPU = {}, texB_UavGPU = {};
+        texA_SrvGPU = {}, texB_SrvGPU = {}, texC_UavGPU = {};
+
+    int _mixType = ADD;
+    float _weight = 0.0f;
+
+public:
+    constexpr static int ADD = 0;
+    constexpr static int MULTIPLY = 1;
+    constexpr static int LERP = 2;
 };

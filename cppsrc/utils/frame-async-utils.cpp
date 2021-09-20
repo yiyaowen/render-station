@@ -1,5 +1,5 @@
 /*
-** Render Station @ https://gitee.com/yiyaowen/render-station
+** Render Station @ https://github.com/yiyaowen/render-station
 **
 ** Create fantastic animation and game.
 **
@@ -47,6 +47,12 @@ void drawRenderItems(D3DCore* pCore, RenderItem** ppRitem, UINT ritemCount, std:
         pCore->cmdList->IASetIndexBuffer(&targetMesh->indexBuffView);
         pCore->cmdList->IASetPrimitiveTopology(ppRitem[i]->topologyType);
 
+        // Bind Object Constants Buffer.
+        auto objectConstBuffAddr = pCore->currFrameResource->objConstBuffGPU->GetGPUVirtualAddress();
+        UINT currSeatIdx = ppRitem[i]->objConstBuffStartIdx + seatIdxOffset;
+        auto currSeatAddr = objectConstBuffAddr + currSeatIdx * calcConstBuffSize(sizeof(ObjConsts));
+        pCore->cmdList->SetGraphicsRootConstantBufferView(0, currSeatAddr);
+
         // Bind Material Constants Buffer.
         auto materialConstBuffAddr = pCore->currFrameResource->matConstBuffGPU->GetGPUVirtualAddress();
         materialConstBuffAddr += ppRitem[i]->materials[seatIdxOffset]->matConstBuffIdx * calcConstBuffSize(sizeof(MatConsts));
@@ -57,11 +63,17 @@ void drawRenderItems(D3DCore* pCore, RenderItem** ppRitem, UINT ritemCount, std:
         texHandle.Offset(ppRitem[i]->materials[seatIdxOffset]->texSrvHeapIdx, pCore->cbvSrvUavDescSize);
         pCore->cmdList->SetGraphicsRootDescriptorTable(3, texHandle);
 
-        // Bind Object Constants Buffer.
-        auto objectConstBuffAddr = pCore->currFrameResource->objConstBuffGPU->GetGPUVirtualAddress();
-        UINT currSeatIdx = ppRitem[i]->objConstBuffStartIdx + seatIdxOffset;
-        auto currSeatAddr = objectConstBuffAddr + currSeatIdx * calcConstBuffSize(sizeof(ObjConsts));
-        pCore->cmdList->SetGraphicsRootConstantBufferView(0, currSeatAddr);
+        // Bind displacement and normal map (If has).
+        if (ppRitem[i]->displacementAndNormalMapDescHeap != nullptr) {
+            ID3D12DescriptorHeap* tmpDescHeaps[] = { ppRitem[i]->displacementAndNormalMapDescHeap };
+            pCore->cmdList->SetDescriptorHeaps(_countof(tmpDescHeaps), tmpDescHeaps);
+
+            if (ppRitem[i]->hasDisplacementMap) pCore->cmdList->SetGraphicsRootDescriptorTable(4, ppRitem[i]->displacementMapHandle);
+            if (ppRitem[i]->hasNormalMap) pCore->cmdList->SetGraphicsRootDescriptorTable(5, ppRitem[i]->normalMapHandle);
+
+            ID3D12DescriptorHeap* descHeaps[] = { pCore->srvUavHeap.Get() };
+            pCore->cmdList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
+        }
 
         Vsubmesh ritemMain = ppRitem[i]->mesh->objects["main"];
         pCore->cmdList->DrawIndexedInstanced(ritemMain.indexCount, 1, ritemMain.startIndexLocation, ritemMain.baseVertexLocation, 0);
@@ -125,6 +137,12 @@ void drawAllRitemsFormatted(D3DCore* pCore, const std::string& psoName, D3D_PRIM
         pCore->cmdList->IASetIndexBuffer(&targetMesh->indexBuffView);
         pCore->cmdList->IASetPrimitiveTopology(primTopology);
 
+        // Bind Object Constants Buffer.
+        auto objectConstBuffAddr = pCore->currFrameResource->objConstBuffGPU->GetGPUVirtualAddress();
+        UINT currSeatIdx = ritem->objConstBuffStartIdx + seatIdxOffset;
+        auto currSeatAddr = objectConstBuffAddr + currSeatIdx * calcConstBuffSize(sizeof(ObjConsts));
+        pCore->cmdList->SetGraphicsRootConstantBufferView(0, currSeatAddr);
+
         // Bind Material Constants Buffer.
         auto materialConstBuffAddr = pCore->currFrameResource->matConstBuffGPU->GetGPUVirtualAddress();
         materialConstBuffAddr += mat->matConstBuffIdx * calcConstBuffSize(sizeof(MatConsts));
@@ -135,12 +153,18 @@ void drawAllRitemsFormatted(D3DCore* pCore, const std::string& psoName, D3D_PRIM
         texHandle.Offset(mat->texSrvHeapIdx, pCore->cbvSrvUavDescSize);
         pCore->cmdList->SetGraphicsRootDescriptorTable(3, texHandle);
 
-        // Bind Object Constants Buffer.
-        auto objectConstBuffAddr = pCore->currFrameResource->objConstBuffGPU->GetGPUVirtualAddress();
-        UINT currSeatIdx = ritem->objConstBuffStartIdx + seatIdxOffset;
-        auto currSeatAddr = objectConstBuffAddr + currSeatIdx * calcConstBuffSize(sizeof(ObjConsts));
-        pCore->cmdList->SetGraphicsRootConstantBufferView(0, currSeatAddr);
+        // Bind displacement and normal map (If has).
+        if (ritem->displacementAndNormalMapDescHeap != nullptr) {
+            ID3D12DescriptorHeap* tmpDescHeaps[] = { ritem->displacementAndNormalMapDescHeap };
+            pCore->cmdList->SetDescriptorHeaps(_countof(tmpDescHeaps), tmpDescHeaps);
 
+            if (ritem->hasDisplacementMap) pCore->cmdList->SetGraphicsRootDescriptorTable(4, ritem->displacementMapHandle);
+            if (ritem->hasNormalMap) pCore->cmdList->SetGraphicsRootDescriptorTable(5, ritem->normalMapHandle);
+
+            ID3D12DescriptorHeap* descHeaps[] = { pCore->srvUavHeap.Get() };
+            pCore->cmdList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
+        }
+      
         Vsubmesh ritemMain = ritem->mesh->objects["main"];
         pCore->cmdList->DrawIndexedInstanced(ritemMain.indexCount, 1, ritemMain.startIndexLocation, ritemMain.baseVertexLocation, 0);
     }

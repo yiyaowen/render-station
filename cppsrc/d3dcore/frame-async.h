@@ -1,5 +1,5 @@
 /*
-** Render Station @ https://gitee.com/yiyaowen/render-station
+** Render Station @ https://github.com/yiyaowen/render-station
 **
 ** Create fantastic animation and game.
 **
@@ -81,4 +81,15 @@ struct RenderItem {
 
     // Set this field FALSE to skip drawing this render item in drawing func series.
     bool isVisible = true;
+
+    // Descriptor heap for displacement and normal map.
+    ID3D12DescriptorHeap* displacementAndNormalMapDescHeap = nullptr;
+
+    // Set this field 1 to enable displacemet map.
+    int hasDisplacementMap = 0;
+    D3D12_GPU_DESCRIPTOR_HANDLE displacementMapHandle = {};
+
+    // Set this field 1 to use normal map instead of origin normal.
+    int hasNormalMap = 0;
+    D3D12_GPU_DESCRIPTOR_HANDLE normalMapHandle = {};
 };
