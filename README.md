@@ -87,4 +87,26 @@ GPU计算着色器优化，稳定40帧以上：
 
 ![](https://raw.githubusercontent.com/yiyaowen/render-station-demo-image/main/wave_simulation_with_GPU_CS_optimization.png)
 
+### 表面细分着色器示例，从上往下距离依次拉近，细分程度越来越高
+
+超远，近乎平面，无任何细节：
+
+![](https://raw.githubusercontent.com/yiyaowen/render-station-demo-image/main/hill-tessellation-flat.png)
+
+非常远，几乎无细节：
+
+![](https://raw.githubusercontent.com/yiyaowen/render-station-demo-image/main/hill-tessellation-very-far.png)
+
+远距离，开始出现细节：
+
+![](https://raw.githubusercontent.com/yiyaowen/render-station-demo-image/main/hill-tessellation-far.png)
+
+中等距离，细节进一步增多：
+
+![](https://raw.githubusercontent.com/yiyaowen/render-station-demo-image/main/hill-tessellation-middle.png)
+
+近距离，最高细节：
+
+![](https://raw.githubusercontent.com/yiyaowen/render-station-demo-image/main/hill-tessellation-near.png)
+
 === 我也是有底线的 ===
