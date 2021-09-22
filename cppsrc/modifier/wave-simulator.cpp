@@ -200,7 +200,7 @@ void WaveSimulator::createGridNodeTextures() {
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
 		&crestTexDesc,
-		D3D12_RESOURCE_STATE_COMMON,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(&prevResource)));
 
@@ -208,7 +208,7 @@ void WaveSimulator::createGridNodeTextures() {
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
 		&crestTexDesc,
-		D3D12_RESOURCE_STATE_COMMON,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(&currResource)));
 
@@ -216,7 +216,7 @@ void WaveSimulator::createGridNodeTextures() {
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
 		&crestTexDesc,
-		D3D12_RESOURCE_STATE_COMMON,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(&nextResource)));
 
@@ -228,7 +228,7 @@ void WaveSimulator::createGridNodeTextures() {
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
 		&mapTexDesc,
-		D3D12_RESOURCE_STATE_COMMON,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(&displacementMap)));
 
@@ -236,7 +236,7 @@ void WaveSimulator::createGridNodeTextures() {
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
 		&mapTexDesc,
-		D3D12_RESOURCE_STATE_COMMON,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(&normalMap)));
 }
@@ -369,11 +369,11 @@ void WaveSimulator::updateWithComputeShaderOptimized() {
 
 		// Update crest data.
 		copyStatedResource(pCore,
-			prevResource.Get(), D3D12_RESOURCE_STATE_COMMON,
+			prevResource.Get(), D3D12_RESOURCE_STATE_GENERIC_READ,
 			currResource.Get(), D3D12_RESOURCE_STATE_GENERIC_READ);
 		copyStatedResource(pCore,
 			currResource.Get(), D3D12_RESOURCE_STATE_GENERIC_READ,
-			nextResource.Get(), D3D12_RESOURCE_STATE_COMMON);
+			nextResource.Get(), D3D12_RESOURCE_STATE_GENERIC_READ);
 	}
 
 	// Update target render item properties.

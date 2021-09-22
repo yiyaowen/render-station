@@ -302,49 +302,49 @@ void updateRenderWindowCaptionInfo(D3DCore* pCore) {
         elapsedSecs += 1.0;
     }
 
-    std::wstring caption = L"Render Station äÖÈ¾¹¤·» @ MSPF Ã¿Ö¡Ê±¼ä£¨ºÁÃë£©: " +
-        std::to_wstring(MSPF) + L", FPS Ö¡ÂÊ: " + std::to_wstring(FPS);
+    std::wstring caption = L"Render Station æ¸²æŸ“å·¥åŠ @ MSPF æ¯å¸§æ—¶é—´ï¼ˆæ¯«ç§’ï¼‰: " +
+        std::to_wstring(MSPF) + L", FPS å¸§ç‡: " + std::to_wstring(FPS);
 
     if (GetAsyncKeyState('1')) {
-        caption += L", Wireframe Mode Ïß¿òÄ£Ê½";
+        caption += L", Wireframe Mode çº¿æ¡†æ¨¡å¼";
     }
 
     // Vertex normal visible.
     if (GetAsyncKeyState('2')) {
-        caption += L", Vertex Normal Visible ¶¥µã·¨Ïß¿ÉÊÓ»¯£¨ºìÉ«£©";
+        caption += L", Vertex Normal Visible é¡¶ç‚¹æ³•çº¿å¯è§†åŒ–ï¼ˆçº¢è‰²ï¼‰";
     }
 
     // Triangle normal visible.
     if (GetAsyncKeyState('3')) {
-        caption += L", Triangle Normal Visible Ãæ·¨Ïß¿ÉÊÓ»¯£¨ÂÌÉ«£©";
+        caption += L", Triangle Normal Visible é¢æ³•çº¿å¯è§†åŒ–ï¼ˆç»¿è‰²ï¼‰";
     }
 
     // Gaussian blur.
     if (GetAsyncKeyState('4')) {
-        caption += L", Gaussian Blur ¸ßË¹Ä£ºıÂË¾µ";
+        caption += L", Gaussian Blur é«˜æ–¯æ¨¡ç³Šæ»¤é•œ";
     }
 
     // Bilateral blur.
     if (GetAsyncKeyState('5')) {
-        caption += L", Bilateral Blur Ë«±ßÄ£ºıÂË¾µ";
+        caption += L", Bilateral Blur åŒè¾¹æ¨¡ç³Šæ»¤é•œ";
     }
 
     // Sobel operator.
     if (GetAsyncKeyState('6')) {
-        caption += L", Sobel Operator Ë÷±´¶ûÂÖÀªËã×Ó";
+        caption += L", Sobel Operator ç´¢è´å°”è½®å»“ç®—å­";
         if (GetAsyncKeyState(VK_SPACE)) {
-            caption += L"£¨°×É«»­±Ê£©";
+            caption += L"ï¼ˆç™½è‰²ç”»ç¬”ï¼‰";
         }
         else {
-            caption += L"£¨ºÚÉ«»­±Ê£©";
+            caption += L"ï¼ˆé»‘è‰²ç”»ç¬”ï¼‰";
         }
     }
     else if (GetAsyncKeyState('7')) {
-        caption += L", Outline Overlay Ãè±ß·ç¸ñÂË¾µ";
+        caption += L", Outline Overlay æè¾¹é£æ ¼æ»¤é•œ";
     }
 
     if (GetAsyncKeyState('0')) {
-        caption += L", Cartoon Water ¿¨Í¨Ë®Ãæ";
+        caption += L", Cartoon Water å¡é€šæ°´é¢";
     }
 
     SetWindowText(hWnd, caption.c_str());
