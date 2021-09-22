@@ -79,7 +79,7 @@ void dev_initCoreElems(D3DCore* pCore) {
         0.4f, // The min disturbance height.
         0.5f, // The max disturbance height.
         0.01f, // The interval seconds between 2 random disturbance.
-        false); // TRUE to enable GPU CS optimization. FALSE to use CPU general computation.
+        true); // TRUE to enable GPU CS optimization. FALSE to use CPU general computation.
     //lake->modifiers["wave"]->setActived(false);
     moveNamedRitemToAllRitems(pCore, "lake", std::move(lake));
     bindRitemReferenceWithLayers(pCore, "lake", { {"alpha", 0} });
