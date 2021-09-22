@@ -26,13 +26,13 @@
     <None Include="shaders\test-demos\vec-add-demo-cs.hlsl" />
     <None Include="shaders\postprocessing\gaussian-blur.hlsl" />
     <None Include="shaders\basic\cartoon.hlsl" />
-    <None Include="shaders\effects\billboard-cartoon-gs.hlsl" />
     <None Include="shaders\test-demos\vec-length-demo-cs.hlsl" />
     <None Include="shaders\postprocessing\bilateral-blur-sdf.hlsl" />
     <None Include="shaders\postprocessing\bilateral-blur.hlsl" />
     <None Include="shaders\cs-optimization\wave-simulation.hlsl" />
     <None Include="shaders\postprocessing\sobel-operator.hlsl" />
     <None Include="shaders\postprocessing\color-compositor.hlsl" />
+    <None Include="shaders\test-demos\hill-tessellation.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cppsrc\widgets\camera.cpp">

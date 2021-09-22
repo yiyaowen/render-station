@@ -254,11 +254,6 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="shaders\effects\billboard-cartoon-gs.hlsl">
-      <FileType>Document</FileType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="shaders\test-demos\vec-length-demo-cs.hlsl">
       <FileType>Document</FileType>
     </None>
@@ -285,6 +280,11 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\postprocessing\color-compositor.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\test-demos\hill-tessellation.hlsl">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

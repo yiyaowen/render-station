@@ -6,7 +6,7 @@
 ** yiyaowen (c) 2021 All Rights Reserved.
 */
 
-// This is the default shader for render station program. ('rs' means 'render station')
+// This is the default shader for render station program.
 
 #include "light-utils.hlsl"
 

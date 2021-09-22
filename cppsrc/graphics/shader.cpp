@@ -31,6 +31,12 @@ void Shader::initWithHlslFile(const std::string& name,
     if (flags & VS) {
         funcs.vs = compileShader(filename, nullptr, entryPoints.vs, "vs_5_0");
     }
+    if (flags & HS) {
+        funcs.hs = compileShader(filename, nullptr, entryPoints.hs, "hs_5_0");
+    }
+    if (flags & DS) {
+        funcs.ds = compileShader(filename, nullptr, entryPoints.ds, "ds_5_0");
+    }
     if (flags & GS) {
         funcs.gs = compileShader(filename, nullptr, entryPoints.gs, "gs_5_0");
     }
@@ -92,6 +98,12 @@ void XM_CALLCONV updateProcConstsWithReflectMat(FXMMATRIX reflectMat, ProcConsts
 void bindShaderToPSO(D3D12_GRAPHICS_PIPELINE_STATE_DESC* pso, Shader* shader) {
     if (shader->hasVS()) {
         pso->VS = { reinterpret_cast<BYTE*>(shader->funcs.vs->GetBufferPointer()), shader->funcs.vs->GetBufferSize() };
+    }
+    if (shader->hasHS()) {
+        pso->HS = { reinterpret_cast<BYTE*>(shader->funcs.hs->GetBufferPointer()), shader->funcs.hs->GetBufferSize() };
+    }
+    if (shader->hasDS()) {
+        pso->DS = { reinterpret_cast<BYTE*>(shader->funcs.ds->GetBufferPointer()), shader->funcs.ds->GetBufferSize() };
     }
     if (shader->hasGS()) {
         pso->GS = { reinterpret_cast<BYTE*>(shader->funcs.gs->GetBufferPointer()), shader->funcs.gs->GetBufferSize() };
