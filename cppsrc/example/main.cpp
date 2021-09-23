@@ -46,6 +46,12 @@ WNDPROC_SIGNATURE(renderWindowProc) {
             }
         }
         return 0;
+    case WM_KEYDOWN:
+        dev_onKeyDown(wParam, pRcore);
+        return 0;
+    case WM_KEYUP:
+        dev_onKeyUp(wParam, pRcore);
+        return 0;
     case WM_LBUTTONDOWN:
     case WM_MBUTTONDOWN:
     case WM_RBUTTONDOWN:
@@ -58,6 +64,9 @@ WNDPROC_SIGNATURE(renderWindowProc) {
         return 0;
     case WM_MOUSEMOVE:
         dev_onMouseMove(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), pRcore);
+        return 0;
+    case WM_MOUSEWHEEL:
+        dev_onMouseScroll(wParam, pRcore);
         return 0;
     case WM_DESTROY:
         PostQuitMessage(0);
@@ -112,6 +121,7 @@ int startRenderWindowMsgLoop(RenderWindow* pWnd) {
         else {
             tickTimer(pRcore->timer.get());
             updateRenderWindowCaptionInfo(pRcore);
+            dev_updateCameraWalk(pRcore->timer->deltaSecs, pRcore->camera.get());
             dev_updateCoreData(pRcore);
             dev_drawCoreElems(pRcore);
         }

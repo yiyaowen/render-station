@@ -137,6 +137,8 @@ struct HullOut
 };
 
 [domain("quad")]
+//[partitioning("fractional_even")]
+//[partitioning("fractional_odd")]
 [partitioning("integer")]
 [outputtopology("triangle_cw")]
 [outputcontrolpoints(4)]

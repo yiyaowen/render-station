@@ -23,11 +23,17 @@ void dev_updateCoreData(D3DCore* pCore);
 
 void dev_drawCoreElems(D3DCore* pCore);
 
+void dev_onKeyDown(WPARAM keyCode, D3DCore* pCore);
+
+void dev_onKeyUp(WPARAM keyCode, D3DCore* pCore);
+
 void dev_onMouseDown(WPARAM btnState, int x, int y, D3DCore* pCore);
 
 void dev_onMouseUp(WPARAM btnState, int x, int y, D3DCore* pCore);
 
 void dev_onMouseMove(WPARAM btnState, int x, int y, D3DCore* pCore);
+
+void dev_onMouseScroll(WPARAM scrollInfo, D3DCore* pCore);
 
 // Note this func should be called every frame/tick.
 void updateRenderWindowCaptionInfo(D3DCore* pCore);
