@@ -10,6 +10,8 @@
 
 #include "light-utils.hlsl"
 
+#define SCENE_MATERIAL_COUNT 14
+
 cbuffer cbPerObject : register(b0)
 {
 	float4x4 gWorld;
@@ -18,6 +20,8 @@ cbuffer cbPerObject : register(b0)
 	
 	int gHasDisplacementMap;
 	int gHasNormalMap;
+
+	uint gMaterialIndex;
 };
 
 cbuffer cbGlobalProc : register(b1)
@@ -39,19 +43,22 @@ cbuffer cbGlobalProc : register(b1)
 	float4x4 gInvTrReflectTrans;
 }
 
-cbuffer cbMaterial : register(b2)
+struct MaterialData
 {
-	float4 gDiffuseAlbedo;
-	float3 gFresnelR0;
-	float gRoughness;
-	float4x4 gMatTrans;
-}
+	float4 diffuseAlbedo;
+	float3 fresnelR0;
+	float roughness;
+	float4x4 matTrans;
+	uint diffuseMapIndex;
+};
 
-Texture2D gDiffuseMap : register(t0);
+StructuredBuffer<MaterialData> gMaterialData : register(t0, space1);
 
-Texture2D gDisplacementMap : register(t1);
+Texture2D gDiffuseMap[SCENE_MATERIAL_COUNT]: register(t0);
 
-Texture2D gNormalMap : register(t2);
+Texture2D gDisplacementMap : register(t0, space2);
+
+Texture2D gNormalMap : register(t0, space3);
 
 // gsam: global sampler
 SamplerState gsamPointWrap        : register(s0);
@@ -80,6 +87,9 @@ struct VertexOut
 VertexOut VS(VertexIn vin)
 {
 	VertexOut vout = (VertexOut)0.0f;
+	
+	// Get material data.
+	MaterialData matData = gMaterialData[gMaterialIndex];
 
 	// Apply displacement and normal map (If has).
 	if (gHasDisplacementMap == 1)
@@ -97,25 +107,29 @@ VertexOut VS(VertexIn vin)
 	vout.posW = posW.xyz;
 	vout.normalW = mul(mul(vin.normalL, (float3x3)gInvTrWorld), (float3x3)gInvTrReflectTrans);
 	float4 uv = mul(float4(vin.uv, 0.0f, 1.0f), gTexTrans);
-	vout.uv = mul(uv, gMatTrans).xy;
+	vout.uv = mul(uv, matData.matTrans).xy;
 
 	return vout;
 }
 
 float4 PS(VertexOut pin) : SV_Target
 {
+	// Get material data.
+	MaterialData matData = gMaterialData[gMaterialIndex];
+
 	pin.normalW = normalize(pin.normalW);
 	float3 eyeVecW = gEyePosW - pin.posW;
 	float distToEye = length(eyeVecW);
 	eyeVecW /= distToEye;
-	float4 diffuseAlbedo = gDiffuseAlbedo * gDiffuseMap.Sample(gsamAnisotropicWrap, pin.uv);
+	float4 diffuseAlbedo = matData.diffuseAlbedo *
+		gDiffuseMap[matData.diffuseMapIndex].Sample(gsamAnisotropicWrap, pin.uv);
 
 	clip(diffuseAlbedo.a - 0.1f);
 
 	float4 ambient = gAmbientLight * diffuseAlbedo;
 
-	const float shininess = 1.0f - gRoughness;
-	Material mat = { diffuseAlbedo, gFresnelR0, shininess };
+	const float shininess = 1.0f - matData.roughness;
+	Material mat = { diffuseAlbedo, matData.fresnelR0, shininess };
 	float4 litColor = { calcAllLightsPhysicsBased(gLights, pin.posW, pin.normalW, eyeVecW, mat), 0.0f };
 	litColor += ambient;
 

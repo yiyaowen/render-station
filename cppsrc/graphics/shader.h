@@ -87,6 +87,8 @@ struct ObjConsts {
 
     int hasDisplacementMap = 0;
     int hasNormalMap = 0;
+
+    UINT materialIndex = 0;
 };
 
 struct ProcConsts {

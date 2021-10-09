@@ -205,16 +205,22 @@ void createRootSig(D3DCore* pCore, const std::string& name, D3D12_ROOT_SIGNATURE
         IID_PPV_ARGS(&pCore->rootSigs[name])));
 }
 
+#define SCENE_MATERIAL_COUNT 14
+
 void createRootSigs(D3DCore* pCore) {
     // Main default root signature.
     CD3DX12_ROOT_PARAMETER slotRootParameter[6];
 
-    slotRootParameter[0].InitAsConstantBufferView(0);
-    slotRootParameter[1].InitAsConstantBufferView(1);
-    slotRootParameter[2].InitAsConstantBufferView(2);
+    slotRootParameter[0].InitAsConstantBufferView(0); // Per object constant buffer data
+    slotRootParameter[1].InitAsConstantBufferView(1); // Global process constant buffer data
+    slotRootParameter[2].InitAsShaderResourceView(0, 1); // Material structured buffer data
     CD3DX12_DESCRIPTOR_RANGE texTable[3];
-    for (int i = 0; i < 3; ++i) {
-        texTable[i].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, i);
+    // Diffuse textures
+    texTable[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, SCENE_MATERIAL_COUNT, 0, 0);
+    slotRootParameter[3].InitAsDescriptorTable(1, &texTable[0], D3D12_SHADER_VISIBILITY_PIXEL);
+    // Displacement map and normal map
+    for (int i = 1; i < 3; ++i) {
+        texTable[i].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, i + 1); // space2, space3
         slotRootParameter[i + 3].InitAsDescriptorTable(1, &texTable[i], D3D12_SHADER_VISIBILITY_ALL);
     }
 
@@ -233,54 +239,6 @@ void createShaders(D3DCore* pCore) {
         "default",
         L"shaders/basic/default.hlsl",
         Shader::VS | Shader::PS,
-        entryPoint);
-
-    pCore->shaders["cartoon"] = std::make_unique<Shader>(
-        "cartoon",
-        L"shaders/basic/cartoon.hlsl",
-        Shader::VS | Shader::PS,
-        entryPoint);
-
-    pCore->shaders["subdivision"] = std::make_unique<Shader>(
-        "subdivision",
-        L"shaders/effects/subdivision-gs.hlsl",
-        Shader::VS | Shader::GS | Shader::PS,
-        entryPoint);
-
-    pCore->shaders["billboard"] = std::make_unique<Shader>(
-        "billboard",
-        L"shaders/effects/billboard-gs.hlsl",
-        Shader::VS | Shader::GS | Shader::PS,
-        entryPoint);
-
-    pCore->shaders["cylinder_generator"] = std::make_unique<Shader>(
-        "cylinder_generator",
-        L"shaders/test-demos/cylinder-generator-gs.hlsl",
-        Shader::VS | Shader::GS | Shader::PS,
-        entryPoint);
-
-    pCore->shaders["explosion"] = std::make_unique<Shader>(
-        "explosion",
-        L"shaders/effects/explosion-gs.hlsl",
-        Shader::VS | Shader::GS | Shader::PS,
-        entryPoint);
-
-    pCore->shaders["ver_normal_visible"] = std::make_unique<Shader>(
-        "ver_normal_visible",
-        L"shaders/others/ver-normal-visible-gs.hlsl",
-        Shader::VS | Shader::GS | Shader::PS,
-        entryPoint);
-
-    pCore->shaders["tri_normal_visible"] = std::make_unique<Shader>(
-        "tri_normal_visible",
-        L"shaders/others/tri-normal-visible-gs.hlsl",
-        Shader::VS | Shader::GS | Shader::PS,
-        entryPoint);
-
-    pCore->shaders["hill_tessellation"] = std::make_unique<Shader>(
-        "hill_tessellation",
-        L"shaders/test-demos/hill-tessellation.hlsl",
-        Shader::VS | Shader::HS | Shader::DS | Shader::PS,
         entryPoint);
 }
 
@@ -311,11 +269,6 @@ void createPSOs(D3DCore* pCore) {
     solidPsoDesc.DSVFormat = pCore->depthStencilBuffFormat;
     checkHR(pCore->device->CreateGraphicsPipelineState(&solidPsoDesc, IID_PPV_ARGS(&pCore->PSOs["solid"])));
 
-    // Cartoon
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC cartoonPsoDesc = solidPsoDesc;
-    bindShaderToPSO(&cartoonPsoDesc, pCore->shaders["cartoon"].get());
-    checkHR(pCore->device->CreateGraphicsPipelineState(&cartoonPsoDesc, IID_PPV_ARGS(&pCore->PSOs["cartoon"])));
-
     // Wireframe
     D3D12_GRAPHICS_PIPELINE_STATE_DESC wireframePsoDesc = solidPsoDesc;
     wireframePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
@@ -325,9 +278,6 @@ void createPSOs(D3DCore* pCore) {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC alphaTestPsoDesc = solidPsoDesc;
     alphaTestPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
     checkHR(pCore->device->CreateGraphicsPipelineState(&alphaTestPsoDesc, IID_PPV_ARGS(&pCore->PSOs["alpha_test"])));
-    // Alpha Test in Cartoon Style
-    bindShaderToPSO(&alphaTestPsoDesc, pCore->shaders["cartoon"].get());
-    checkHR(pCore->device->CreateGraphicsPipelineState(&alphaTestPsoDesc, IID_PPV_ARGS(&pCore->PSOs["alpha_test_cartoon"])));
 
     // Alpha
     D3D12_GRAPHICS_PIPELINE_STATE_DESC alphaPsoDesc = solidPsoDesc;
@@ -338,9 +288,6 @@ void createPSOs(D3DCore* pCore) {
     alphaRTBD.BlendOp = D3D12_BLEND_OP_ADD;
     alphaPsoDesc.BlendState.RenderTarget[0] = alphaRTBD;
     checkHR(pCore->device->CreateGraphicsPipelineState(&alphaPsoDesc, IID_PPV_ARGS(&pCore->PSOs["alpha"])));
-    // Alpha in Cartoon Style
-    bindShaderToPSO(&alphaPsoDesc, pCore->shaders["cartoon"].get());
-    checkHR(pCore->device->CreateGraphicsPipelineState(&alphaPsoDesc, IID_PPV_ARGS(&pCore->PSOs["alpha_cartoon"])));
 
     // Stencil Mark:
     // Keep the render target buffer and depth buffer intact and always mark the stencil buffer (stencil test will always passes).
@@ -404,170 +351,148 @@ void createPSOs(D3DCore* pCore) {
     planarShadowDSD.BackFace = planarShadowDSD.FrontFace;
     planarShadowPsoDesc.DepthStencilState = planarShadowDSD;
     checkHR(pCore->device->CreateGraphicsPipelineState(&planarShadowPsoDesc, IID_PPV_ARGS(&pCore->PSOs["planar_shadow"])));
-
-    // Subdivision Geometry Shader
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC subdivisionGsPsoDesc = wireframePsoDesc;
-    bindShaderToPSO(&subdivisionGsPsoDesc, pCore->shaders["subdivision"].get());
-    checkHR(pCore->device->CreateGraphicsPipelineState(&subdivisionGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["subdivision"])));
-
-    // Billboard Geometry Shader
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC billboardGsPsoDesc = solidPsoDesc;
-    bindShaderToPSO(&billboardGsPsoDesc, pCore->shaders["billboard"].get());
-    billboardGsPsoDesc.BlendState.AlphaToCoverageEnable = true;
-    billboardGsPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
-    checkHR(pCore->device->CreateGraphicsPipelineState(&billboardGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["billboard"])));
-
-    // Cylinder Generator Geometry Shader
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC cylinderGeneratorGsPsoDesc = solidPsoDesc;
-    bindShaderToPSO(&cylinderGeneratorGsPsoDesc, pCore->shaders["cylinder_generator"].get());
-    cylinderGeneratorGsPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
-    cylinderGeneratorGsPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-    checkHR(pCore->device->CreateGraphicsPipelineState(&cylinderGeneratorGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["cylinder_generator"])));
-
-    // Explosion Animation Geometry Shader
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC explosionAnimationGsPsoDesc = solidPsoDesc;
-    bindShaderToPSO(&explosionAnimationGsPsoDesc, pCore->shaders["explosion"].get());
-    checkHR(pCore->device->CreateGraphicsPipelineState(&explosionAnimationGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["explosion_animation"])));
-
-    // Normal Visible Geometry Shader
-    // Vertex Normal
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC verNormalVisibleGsPsoDesc = solidPsoDesc;
-    bindShaderToPSO(&verNormalVisibleGsPsoDesc, pCore->shaders["ver_normal_visible"].get());
-    verNormalVisibleGsPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
-    checkHR(pCore->device->CreateGraphicsPipelineState(&verNormalVisibleGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["ver_normal_visible"])));
-    // Triangle Normal
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC triNormalVisibleGsPsoDesc = solidPsoDesc;
-    bindShaderToPSO(&triNormalVisibleGsPsoDesc, pCore->shaders["tri_normal_visible"].get());
-    checkHR(pCore->device->CreateGraphicsPipelineState(&triNormalVisibleGsPsoDesc, IID_PPV_ARGS(&pCore->PSOs["tri_normal_visible"])));
-
-    // Hill Tessellation Hull Shader and Domain Shader
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC hillTessellationPsoDesc = solidPsoDesc;
-    bindShaderToPSO(&hillTessellationPsoDesc, pCore->shaders["hill_tessellation"].get());
-    hillTessellationPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;
-    checkHR(pCore->device->CreateGraphicsPipelineState(&hillTessellationPsoDesc, IID_PPV_ARGS(&pCore->PSOs["hill_tessellation"])));
-
-    hillTessellationPsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
-    checkHR(pCore->device->CreateGraphicsPipelineState(&hillTessellationPsoDesc, IID_PPV_ARGS(&pCore->PSOs["hill_tessellation_wireframe"])));
 }
 
 void createBasicMaterials(D3DCore* pCore) {
     auto red = std::make_unique<Material>();
     red->name = "red";
-    red->matConstBuffIdx = 0;
+    red->matStructBuffIdx = 0;
     red->texSrvHeapIdx = pCore->textures2d["default"]->srvHeapIdx;
-    red->constData.diffuseAlbedo = XMFLOAT4(Colors::Red);
-    red->constData.fresnelR0 = { 1.0f, 0.0f, 0.0f };
-    red->constData.roughness = 0.0f;
+    red->matData.diffuseAlbedo = XMFLOAT4(Colors::Red);
+    red->matData.fresnelR0 = { 1.0f, 0.0f, 0.0f };
+    red->matData.roughness = 0.0f;
+    red->matData.diffuseMapIndex = red->texSrvHeapIdx;
     pCore->materials[red->name] = std::move(red);
 
     auto green = std::make_unique<Material>();
     green->name = "green";
-    green->matConstBuffIdx = 1;
+    green->matStructBuffIdx = 1;
     green->texSrvHeapIdx = pCore->textures2d["default"]->srvHeapIdx;
-    green->constData.diffuseAlbedo = XMFLOAT4(Colors::Green);
-    green->constData.fresnelR0 = { 0.0f, 1.0f, 0.0f };
-    green->constData.roughness = 0.0f;
+    green->matData.diffuseAlbedo = XMFLOAT4(Colors::Green);
+    green->matData.fresnelR0 = { 0.0f, 1.0f, 0.0f };
+    green->matData.roughness = 0.0f;
+    green->matData.diffuseMapIndex = green->texSrvHeapIdx;
     pCore->materials[green->name] = std::move(green);
 
     auto blue = std::make_unique<Material>();
     blue->name = "blue";
-    blue->matConstBuffIdx = 2;
+    blue->matStructBuffIdx = 2;
     blue->texSrvHeapIdx = pCore->textures2d["default"]->srvHeapIdx;
-    blue->constData.diffuseAlbedo = XMFLOAT4(Colors::Blue);
-    blue->constData.fresnelR0 = { 0.0f, 0.0f, 1.0f };
-    blue->constData.roughness = 0.0f;
+    blue->matData.diffuseAlbedo = XMFLOAT4(Colors::Blue);
+    blue->matData.fresnelR0 = { 0.0f, 0.0f, 1.0f };
+    blue->matData.roughness = 0.0f;
+    blue->matData.diffuseMapIndex = blue->texSrvHeapIdx;
     pCore->materials[blue->name] = std::move(blue);
 
     auto grass = std::make_unique<Material>();
     grass->name = "grass";
-    grass->matConstBuffIdx = 3;
+    grass->matStructBuffIdx = 3;
     grass->texSrvHeapIdx = pCore->textures2d["grass"]->srvHeapIdx;
-    grass->constData.diffuseAlbedo = { 0.4f, 0.5f, 0.4f, 1.0f };
-    grass->constData.fresnelR0 = { 0.001f, 0.001f, 0.001f };
-    grass->constData.roughness = 0.8f;
+    grass->matData.diffuseAlbedo = { 0.4f, 0.5f, 0.4f, 1.0f };
+    grass->matData.fresnelR0 = { 0.001f, 0.001f, 0.001f };
+    grass->matData.roughness = 0.8f;
+    grass->matData.diffuseMapIndex = grass->texSrvHeapIdx;
     pCore->materials[grass->name] = std::move(grass);
 
     auto water = std::make_unique<Material>();
     water->name = "water";
-    water->matConstBuffIdx = 4;
+    water->matStructBuffIdx = 4;
     water->texSrvHeapIdx = pCore->textures2d["water"]->srvHeapIdx;
-    water->constData.diffuseAlbedo = { 0.5f, 0.5f, 0.6f, 0.3f };
-    water->constData.fresnelR0 = { 0.1f, 0.1f, 0.1f };
-    water->constData.roughness = 0.0f;
+    water->matData.diffuseAlbedo = { 0.5f, 0.5f, 0.6f, 0.3f };
+    water->matData.fresnelR0 = { 0.1f, 0.1f, 0.1f };
+    water->matData.roughness = 0.0f;
+    water->matData.diffuseMapIndex = water->texSrvHeapIdx;
     pCore->materials[water->name] = std::move(water);
 
     auto crate = std::make_unique<Material>();
     crate->name = "crate";
-    crate->matConstBuffIdx = 5;
+    crate->matStructBuffIdx = 5;
     crate->texSrvHeapIdx = pCore->textures2d["crate"]->srvHeapIdx;
-    crate->constData.diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
-    crate->constData.fresnelR0 = { 0.01f, 0.01f, 0.01f };
-    crate->constData.roughness = 0.4f;
+    crate->matData.diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
+    crate->matData.fresnelR0 = { 0.01f, 0.01f, 0.01f };
+    crate->matData.roughness = 0.4f;
+    crate->matData.diffuseMapIndex = crate->texSrvHeapIdx;
     pCore->materials[crate->name] = std::move(crate);
 
     auto fence = std::make_unique<Material>();
     fence->name = "fence";
-    fence->matConstBuffIdx = 6;
+    fence->matStructBuffIdx = 6;
     fence->texSrvHeapIdx = pCore->textures2d["fence"]->srvHeapIdx;
-    fence->constData.diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
-    fence->constData.fresnelR0 = { 0.06f, 0.06f, 0.06f };
-    fence->constData.roughness = 0.1f;
+    fence->matData.diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
+    fence->matData.fresnelR0 = { 0.06f, 0.06f, 0.06f };
+    fence->matData.roughness = 0.1f;
+    fence->matData.diffuseMapIndex = fence->texSrvHeapIdx;
     pCore->materials[fence->name] = std::move(fence);
 
     auto brick = std::make_unique<Material>();
     brick->name = "brick";
-    brick->matConstBuffIdx = 7;
+    brick->matStructBuffIdx = 7;
     brick->texSrvHeapIdx = pCore->textures2d["brick"]->srvHeapIdx;
-    brick->constData.diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
-    brick->constData.fresnelR0 = { 0.002f, 0.002f, 0.002f };
-    brick->constData.roughness = 0.9f;
+    brick->matData.diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
+    brick->matData.fresnelR0 = { 0.002f, 0.002f, 0.002f };
+    brick->matData.roughness = 0.9f;
+    brick->matData.diffuseMapIndex = brick->texSrvHeapIdx;
     pCore->materials[brick->name] = std::move(brick);
 
     auto checkboard = std::make_unique<Material>();
     checkboard->name = "checkboard";
-    checkboard->matConstBuffIdx = 8;
+    checkboard->matStructBuffIdx = 8;
     checkboard->texSrvHeapIdx = pCore->textures2d["checkboard"]->srvHeapIdx;
-    checkboard->constData.diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
-    checkboard->constData.fresnelR0 = { 0.008f, 0.008f, 0.008f };
-    checkboard->constData.roughness = 0.6f;
+    checkboard->matData.diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
+    checkboard->matData.fresnelR0 = { 0.008f, 0.008f, 0.008f };
+    checkboard->matData.roughness = 0.6f;
+    checkboard->matData.diffuseMapIndex = checkboard->texSrvHeapIdx;
     pCore->materials[checkboard->name] = std::move(checkboard);
 
     auto skull = std::make_unique<Material>();
     skull->name = "skull";
-    skull->matConstBuffIdx = 9;
+    skull->matStructBuffIdx = 9;
     skull->texSrvHeapIdx = pCore->textures2d["default"]->srvHeapIdx;
-    skull->constData.diffuseAlbedo = { 0.8f, 0.8f, 0.8f, 1.0f };
-    skull->constData.fresnelR0 = { 0.003f, 0.003f, 0.003f };
-    skull->constData.roughness = 0.7f;
+    skull->matData.diffuseAlbedo = { 0.6f, 0.6f, 0.6f, 1.0f };
+    skull->matData.fresnelR0 = { 0.003f, 0.003f, 0.003f };
+    skull->matData.roughness = 0.7f;
+    skull->matData.diffuseMapIndex = skull->texSrvHeapIdx;
     pCore->materials[skull->name] = std::move(skull);
 
     auto mirror = std::make_unique<Material>();
-    mirror->name = "mirror";
-    mirror->matConstBuffIdx = 10;
+    mirror->name = "glass";
+    mirror->matStructBuffIdx = 10;
     mirror->texSrvHeapIdx = pCore->textures2d["ice"]->srvHeapIdx;
-    mirror->constData.diffuseAlbedo = { 0.75f, 0.75f, 0.8f, 0.3f };
-    mirror->constData.fresnelR0 = { 0.5f, 0.5f, 0.5f };
-    mirror->constData.roughness = 0.0f;
+    mirror->matData.diffuseAlbedo = { 1.0f, 1.0f, 0.8f, 0.8f };
+    mirror->matData.fresnelR0 = { 0.5f, 0.5f, 0.5f };
+    mirror->matData.roughness = 0.0f;
+    mirror->matData.diffuseMapIndex = mirror->texSrvHeapIdx;
     pCore->materials[mirror->name] = std::move(mirror);
 
     auto shadow = std::make_unique<Material>();
     shadow->name = "shadow";
-    shadow->matConstBuffIdx = 11;
+    shadow->matStructBuffIdx = 11;
     shadow->texSrvHeapIdx = pCore->textures2d["default"]->srvHeapIdx;
-    shadow->constData.diffuseAlbedo = { 0.0f, 0.0f, 0.0f, 0.5f };
-    shadow->constData.fresnelR0 = { 0.001f, 0.001f, 0.001f };
-    shadow->constData.roughness = 0.0f;
+    shadow->matData.diffuseAlbedo = { 0.0f, 0.0f, 0.0f, 0.5f };
+    shadow->matData.fresnelR0 = { 0.001f, 0.001f, 0.001f };
+    shadow->matData.roughness = 0.0f;
+    shadow->matData.diffuseMapIndex = shadow->texSrvHeapIdx;
     pCore->materials[shadow->name] = std::move(shadow);
 
-    auto trees = std::make_unique<Material>();
-    trees->name = "trees";
-    trees->matConstBuffIdx = 12;
-    // Note this is a 2D texture array!
-    trees->texSrvHeapIdx = pCore->textures2darray["tree_array"]->srvHeapIdx;
-    trees->constData.diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
-    trees->constData.fresnelR0 = { 0.002f, 0.002f, 0.002f };
-    trees->constData.roughness = 0.6f;
-    pCore->materials[trees->name] = std::move(trees);
+    auto tile = std::make_unique<Material>();
+    tile->name = "tile";
+    tile->matStructBuffIdx = 12;
+    tile->texSrvHeapIdx = pCore->textures2d["tile"]->srvHeapIdx;
+    tile->matData.diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
+    tile->matData.fresnelR0 = { 0.002f, 0.002f, 0.002f };
+    tile->matData.roughness = 0.9f;
+    tile->matData.diffuseMapIndex = tile->texSrvHeapIdx;
+    pCore->materials[tile->name] = std::move(tile);
+
+    auto stone = std::make_unique<Material>();
+    stone->name = "stone";
+    stone->matStructBuffIdx = 13;
+    stone->texSrvHeapIdx = pCore->textures2d["stone"]->srvHeapIdx;
+    stone->matData.diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
+    stone->matData.fresnelR0 = { 0.002f, 0.002f, 0.002f };
+    stone->matData.roughness = 0.9f;
+    stone->matData.diffuseMapIndex = stone->texSrvHeapIdx;
+    pCore->materials[stone->name] = std::move(stone);
 }
 
 void loadBasicTextures(D3DCore* pCore) {
@@ -622,12 +547,17 @@ void loadBasicTextures(D3DCore* pCore) {
         L"textures/ice.dds", iceTex->resource, iceTex->uploadHeap));
     pCore->textures2d[iceTex->name] = std::move(iceTex);
 
-    auto treeArrayTex = std::make_unique<Texture>();
-    treeArrayTex->name = "tree_array";
+    auto tileTex = std::make_unique<Texture>();
+    tileTex->name = "tile";
     checkHR(CreateDDSTextureFromFile12(pCore->device.Get(), pCore->cmdList.Get(),
-        L"textures/treearray.dds", treeArrayTex->resource, treeArrayTex->uploadHeap));
-    // Note this is a 2D texture array!
-    pCore->textures2darray[treeArrayTex->name] = std::move(treeArrayTex);
+        L"textures/tile.dds", tileTex->resource, tileTex->uploadHeap));
+    pCore->textures2d[tileTex->name] = std::move(tileTex);
+
+    auto stoneTex = std::make_unique<Texture>();
+    stoneTex->name = "stone";
+    checkHR(CreateDDSTextureFromFile12(pCore->device.Get(), pCore->cmdList.Get(),
+        L"textures/stone.dds", stoneTex->resource, stoneTex->uploadHeap));
+    pCore->textures2d[stoneTex->name] = std::move(stoneTex);
 
     checkHR(pCore->cmdList->Close());
     ID3D12CommandList* cmdLists[] = { pCore->cmdList.Get() };
@@ -781,7 +711,13 @@ void createFrameResources(D3DCore* pCore) {
         // another reflected process constant buffer is needed to draw the mirror objects.
         initFResourceProcConstBuff(pCore, 2, resource.get());
 
-        initFResourceMatConstBuff(pCore, pCore->materials.size(), resource.get());
+        std::vector<MaterialData> materialDataList(pCore->materials.size());
+        for (const auto& mkv : pCore->materials) {
+            auto m = mkv.second.get();
+            materialDataList[m->matStructBuffIdx] = m->matData;
+        }
+        initFResourceMatStructBuff(pCore, materialDataList.data(),
+            materialDataList.size() * sizeof(MaterialData), resource.get());
 
         // Initialize dynamic meshes.
         for (auto& kv : pCore->ritems) {

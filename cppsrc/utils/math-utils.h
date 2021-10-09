@@ -17,6 +17,8 @@ float clampf(float value, float min, float max);
 
 XMFLOAT3 midpoint(XMFLOAT3 a, XMFLOAT3 b);
 
+XMFLOAT2 midpoint(XMFLOAT2 a, XMFLOAT2 b);
+
 XMVECTOR sphericalToCartesianDX(float radius, float theta, float phi);
 
 XMVECTOR sphericalToCartesianRH(float radius, float theta, float phi);

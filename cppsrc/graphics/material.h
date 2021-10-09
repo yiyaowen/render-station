@@ -17,7 +17,7 @@ using namespace DirectX;
 #define NUM_FRAME_RESOURCES 3
 #endif
 
-struct MatConsts {
+struct MaterialData {
     XMFLOAT4 diffuseAlbedo = { 0.0f, 0.0f, 0.0f, 0.0f };
     // R0 is used to simulate the Fresnel effect in real world. Note however the
     // exact Fresnel equation is expensive for real-time rendering, so we use the
@@ -26,6 +26,7 @@ struct MatConsts {
     // shininess = clampf(1 - roughness, 0, 1).
     float roughness = 0.0f;
     XMFLOAT4X4 matTrans = makeIdentityFloat4x4();
+    UINT diffuseMapIndex = 0;
 };
 
 struct Material {
@@ -34,7 +35,7 @@ struct Material {
     // For more information about numDirtyFrames please turn to frame-async.h.
     int numDirtyFrames = NUM_FRAME_RESOURCES;
     // Specific material properties.
-    MatConsts constData;
-    size_t matConstBuffIdx = -1;
+    MaterialData matData;
+    size_t matStructBuffIdx = -1;
     size_t texSrvHeapIdx = -1;
 };

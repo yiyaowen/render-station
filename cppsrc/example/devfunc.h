@@ -15,8 +15,6 @@ void dev_updateCoreObjConsts(D3DCore* pCore);
 
 void dev_updateCoreProcConsts(D3DCore* pCore);
 
-void dev_updateCoreMatConsts(D3DCore* pCore);
-
 void dev_updateCoreDynamicMesh(D3DCore* pCore);
 
 void dev_updateCoreData(D3DCore* pCore);
@@ -37,3 +35,27 @@ void dev_onMouseScroll(WPARAM scrollInfo, D3DCore* pCore);
 
 // Note this func should be called every frame/tick.
 void updateRenderWindowCaptionInfo(D3DCore* pCore);
+
+// Scene object creation tool funcs
+void createCubeObject(
+	D3DCore* pCore,
+	const std::string& name,
+	XMFLOAT3 pos, XMFLOAT3 xyz,
+	const std::string& materialName,
+	const std::unordered_map<std::string, UINT>& layerInfos);
+
+void createCylinderObject(
+	D3DCore* pCore,
+	const std::string& name,
+	XMFLOAT3 pos,
+	float topR, float bottomR, float h,
+	UINT sliceCount, UINT stackCount,
+	const std::string& materialName,
+	const std::unordered_map<std::string, UINT>& layerInfos);
+
+void createSphereObject(
+	D3DCore* pCore,
+	const std::string& name,
+	XMFLOAT3 pos, float r, UINT subdivisionCount,
+	const std::string& materialName,
+	const std::unordered_map<std::string, UINT>& layerInfos);

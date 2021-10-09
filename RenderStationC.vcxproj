@@ -160,36 +160,6 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="shaders\effects\subdivision-gs.hlsl">
-      <FileType>Document</FileType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="shaders\effects\billboard-gs.hlsl">
-      <FileType>Document</FileType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="shaders\test-demos\cylinder-generator-gs.hlsl">
-      <FileType>Document</FileType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="shaders\effects\explosion-gs.hlsl">
-      <FileType>Document</FileType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="shaders\others\ver-normal-visible-gs.hlsl">
-      <FileType>Document</FileType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="shaders\others\tri-normal-visible-gs.hlsl">
-      <FileType>Document</FileType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="cppsrc\modifier\modifier.cpp" />
     <ClCompile Include="cppsrc\modifier\wave-simulator.cpp" />
     <ClCompile Include="cppsrc\postprocessing\bilateral-blur.cpp" />
@@ -239,22 +209,7 @@
     <ClInclude Include="cppsrc\graphics\vmesh.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="shaders\test-demos\vec-add-demo-cs.hlsl">
-      <FileType>Document</FileType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="shaders\postprocessing\gaussian-blur.hlsl">
-      <FileType>Document</FileType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="shaders\basic\cartoon.hlsl">
-      <FileType>Document</FileType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="shaders\test-demos\vec-length-demo-cs.hlsl">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>
@@ -280,11 +235,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\postprocessing\color-compositor.hlsl">
-      <FileType>Document</FileType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="shaders\test-demos\hill-tessellation.hlsl">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

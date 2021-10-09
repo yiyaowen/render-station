@@ -30,6 +30,15 @@ void updateRitemRangeObjConstBuffIdx(RenderItem** ppRitem, size_t ritemCount) {
     }
 }
 
+void updateRitemRangeMaterialDataIdx(RenderItem** ppRitem, size_t ritemCount) {
+    for (size_t i = 0; i < ritemCount; ++i) {
+        for (auto& objBuff : ppRitem[i]->constData) {
+            // It is temporarily assumed that each render item only holds one material object.
+            objBuff.materialIndex = ppRitem[i]->materials[0]->matStructBuffIdx;
+        }
+    }
+}
+
 UINT calcRitemRangeTotalObjConstBuffSeatCount(RenderItem** ppRitem, size_t ritemCount) {
     UINT seatCount = 0;
     for (size_t i = 0; i < ritemCount; ++i) {
