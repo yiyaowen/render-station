@@ -13,7 +13,7 @@ void initEmptyFrameResource(D3DCore* pCore, FrameResource* pResource);
 
 void initFResourceObjConstBuff(D3DCore* pCore, UINT objBuffCount, FrameResource* pResource);
 void initFResourceProcConstBuff(D3DCore* pCore, UINT procBuffCount, FrameResource* pResource);
-void initFResourceMatConstBuff(D3DCore* pCore, UINT matBuffCount, FrameResource* pResource);
+void initFResourceMatStructBuff(D3DCore* pCore, void* data, UINT64 byteSize, FrameResource* pResource);
 
 void initEmptyRenderItem(RenderItem* pRitem);
 

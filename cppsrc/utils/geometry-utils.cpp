@@ -103,12 +103,12 @@ void subdivide(ObjectGeometry* geo) {
         Vertex v1 = pVer[pIdx[i * 3 + 1]];
         Vertex v2 = pVer[pIdx[i * 3 + 2]];
 
-        geo->vertices.push_back({ v0.pos });                   // i * 6
-        geo->vertices.push_back({ midpoint(v0.pos, v1.pos) }); // i * 6 + 1
-        geo->vertices.push_back({ v1.pos });                   // i * 6 + 2
-        geo->vertices.push_back({ midpoint(v1.pos, v2.pos) }); // i * 6 + 3
-        geo->vertices.push_back({ v2.pos });                   // i * 6 + 4
-        geo->vertices.push_back({ midpoint(v2.pos, v0.pos) }); // i * 6 + 5
+        geo->vertices.push_back(v0);
+        geo->vertices.push_back({ midpoint(v0.pos, v1.pos), midpoint(v0.normal, v1.normal), midpoint(v0.uv, v1.uv) });
+        geo->vertices.push_back(v1);
+        geo->vertices.push_back({ midpoint(v1.pos, v2.pos), midpoint(v1.normal, v2.normal), midpoint(v1.uv, v2.uv) });
+        geo->vertices.push_back(v2);
+        geo->vertices.push_back({ midpoint(v2.pos, v0.pos), midpoint(v2.normal, v0.normal), midpoint(v2.uv, v0.uv) });
 
         UINT32 b = i * 6; // base index
         geo->indices.push_back(b);
@@ -253,7 +253,8 @@ void generateCylinder(float topR, float bottomR, float h, UINT sliceCount, UINT 
         for (UINT j = 0; j < sliceCount + 1; ++j) {
             float x = currR * cosf(j * deltaTheta);
             float y = currR * sinf(j * deltaTheta);
-            cylinder->vertices.push_back({ XMFLOAT3(x, y, currH), normals[j] });
+            cylinder->vertices.push_back({ XMFLOAT3(x, y, currH), normals[j],
+                /* uv */ XMFLOAT2(float(j) / sliceCount, float(i) / stackCount) });
         }
     }
     for (UINT i = 0; i < stackCount; ++i) {
@@ -318,7 +319,8 @@ void generateSphere(float r, UINT sliceCount, UINT ringCount, ObjectGeometry* sp
             float y = currR * sinf(j * deltaTheta);
             XMVECTOR N = sphericalToCartesianRH(1.0f, j * deltaTheta, i * deltaPhi);
             XMStoreFloat3(&eachNormal, N);
-            sphere->vertices.push_back({ XMFLOAT3(x, y, currH), eachNormal });
+            sphere->vertices.push_back({ XMFLOAT3(x, y, currH), eachNormal,
+                /* uv */ XMFLOAT2(float(j) / sliceCount, float(i - 1) /  ringCount) });
         }
     }
     for (UINT i = 0; i < ringCount; ++i) {

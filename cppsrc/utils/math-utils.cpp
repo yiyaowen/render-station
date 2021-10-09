@@ -25,9 +25,16 @@ float clampf(float value, float min, float max) {
 
 XMFLOAT3 midpoint(XMFLOAT3 a, XMFLOAT3 b) {
     return XMFLOAT3(
-        (a.x + b.x) / 2,
-        (a.y + b.y) / 2,
-        (a.z + b.z) / 2);
+        (a.x + b.x) * 0.5f,
+        (a.y + b.y) * 0.5f,
+        (a.z + b.z) * 0.5f);
+}
+
+XMFLOAT2 midpoint(XMFLOAT2 a, XMFLOAT2 b)
+{
+    return XMFLOAT2(
+        (a.x + b.x) * 0.5f,
+        (a.y + b.y) * 0.5f);
 }
 
 // Left hand coordinate system in DX (Y-axis is upward).

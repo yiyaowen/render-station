@@ -20,95 +20,44 @@
 #include "utils/render-item-utils.h"
 #include "utils/vmesh-utils.h"
 
+static void loadSkullModel(D3DCore* pCore);
+
 void dev_initCoreElems(D3DCore* pCore) {
      //Note the origin render item collection has already included a set of axes (X-Y-Z).
      //However, the collection can still be cleared if the first 3 axes ritems are handled carefully.
     findRitemLayerWithName("solid", pCore->ritemLayers).clear();
 
-    auto boxGeo = std::make_unique<ObjectGeometry>();
-    generateCube(XMFLOAT3(1.0f, 1.0f, 1.0f), boxGeo.get());
-    translateObjectGeometry(-4.0f, 0.0f, 0.0f, boxGeo.get());
-    auto box = std::make_unique<RenderItem>();
-    initRitemWithGeoInfo(pCore, boxGeo.get(), 1, box.get());
-    box->materials = { pCore->materials["fence"].get() };
-    moveNamedRitemToAllRitems(pCore, "box", std::move(box));
-    bindRitemReferenceWithLayers(pCore, "box", { {"alpha_test", 0} });
-    bindRitemReferenceWithLayers(pCore, "box", { {"wireframe", 0} });
-    //pCore->ritems["box"]->isVisible = false;
+    translateCamera(0.0f, 12.0f, -20.0f, pCore->camera.get());
+    rotateCamera(20.0f * XM_PI / 180.0f, 0.0f, 0.0f, pCore->camera.get());
+    pCore->camera->isViewTransDirty = true;
 
-    // Hill 1
-    auto hillGeo = std::make_unique<ObjectGeometry>();
-    generateGrid(100.0f, 100.0f, 100, 100, hillGeo.get());
-    disturbGridToHill(0.2f, 0.2f, hillGeo.get());
-    rotateObjectGeometry(-XM_PIDIV2, 0.0f, 0.0f, hillGeo.get());
-    auto hill = std::make_unique<RenderItem>();
-    initRitemWithGeoInfo(pCore, hillGeo.get(), 1, hill.get());
-    hill->materials = { pCore->materials["grass"].get() };
-    moveNamedRitemToAllRitems(pCore, "hill", std::move(hill));
-    bindRitemReferenceWithLayers(pCore, "hill", { {"solid", 0} });
-    bindRitemReferenceWithLayers(pCore, "hill", { {"wireframe", 0} });
-    //pCore->ritems["hill"]->isVisible = false;
-    // Hill 2
-    rotateObjectGeometry(0.0f, 130.0f * XM_2PI / 360.0f, 0.0f, hillGeo.get());
-    translateObjectGeometry(0.0f, -5.0f, 0.0f, hillGeo.get());
-    auto hill2 = std::make_unique<RenderItem>();
-    initRitemWithGeoInfo(pCore, hillGeo.get(), 1, hill2.get());
-    hill2->materials = { pCore->materials["grass"].get() };
-    moveNamedRitemToAllRitems(pCore, "hill2", std::move(hill2));
-    bindRitemReferenceWithLayers(pCore, "hill2", { {"solid", 0} });
-    bindRitemReferenceWithLayers(pCore, "hill2", { {"wireframe", 0} });
-    //pCore->ritems["hill2"]->isVisible = false;
+    /* Build scene object start */
 
-    auto lakeGeo = std::make_unique<ObjectGeometry>();
-    generateGrid(100.0f, 100.0f, 256, 256, lakeGeo.get());
-    rotateObjectGeometry(-XM_PIDIV2, 0.0f, 0.0f, lakeGeo.get());
-    translateObjectGeometry(0.0f, -0.2f, 0.0f, lakeGeo.get());
-    auto lake = std::make_unique<RenderItem>();
-    initRitemWithGeoInfo(pCore, lakeGeo.get(), 1, lake.get());
-    lake->materials = { pCore->materials["water"].get() };
-    // Lake ritem is marked as dynamic to simulate wave animation.
-    lake->isDynamic = true;
-    lake->modifiers["wave"] = std::make_unique<WaveSimulator>(pCore,
-        lake.get(), // Initial target render item.
-        100.0f / (2 * 256), // The distance between two adjacent vertices in the grid.
-        256, // Half horizontal node count.
-        256, // Half vertical node count.
-        lakeGeo.get(),
-        8.0f, // The spread velocity of wave.
-        0.15f, // The damping grade with velocity dimension.
-        0.4f, // The min disturbance height.
-        0.5f, // The max disturbance height.
-        0.01f, // The interval seconds between 2 random disturbance.
-        true); // TRUE to enable GPU CS optimization. FALSE to use CPU general computation.
-    //lake->modifiers["wave"]->setActived(false);
-    moveNamedRitemToAllRitems(pCore, "lake", std::move(lake));
-    bindRitemReferenceWithLayers(pCore, "lake", { {"alpha", 0} });
-    bindRitemReferenceWithLayers(pCore, "lake", { {"alpha_cartoon", 0} });
-    bindRitemReferenceWithLayers(pCore, "lake", { {"wireframe", 0} });
-    //pCore->ritems["water"]->isVisible = false;
+    createCubeObject(pCore, "floor", XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(20.0f, 1.0f, 20.0f), "tile", { {"solid", 0}, {"wireframe", 0} });
+    
+    createCubeObject(pCore, "stage", XMFLOAT3(0.0f, 3.0f, 0.0f), XMFLOAT3(2.0f, 2.0f, 2.0f), "brick", { {"solid", 0}, {"wireframe", 0} });
 
-    auto treesGeo = std::make_unique<ObjectGeometry>();
-    std::vector<Vertex> treeVertices;
-    std::vector<UINT32> treeIndicies;
-    for (int i = 0; i < 200; ++i) {
-        float randX = randfloat(-40.0f, 40.0f);
-        float randZ = 0.0f;
-        if (-30.0f < randX && randX < 30.0f) { randZ = randfloatEx({ {-40.0f, -30.0f}, {30.0f, 40.0f} }); }
-        else { randZ = randfloat(-40.0f, 40.0f); }
-        treeVertices.push_back({ { randX, randfloat(3.5f, 7.5f), randZ }, {}, {}, { randfloat(15.0f, 17.0f), randfloat(16.0f, 18.0f) } });
-        treeIndicies.push_back(i);
+    loadSkullModel(pCore);
+
+    int k = 0;
+    for (int i = 0; i < 3; i += 2) {
+        for (int j = 0; j < 4; ++j) {
+            createCylinderObject(pCore, "pillar" + std::to_string(k),
+                /* pos */ XMFLOAT3(10.0f * (i - 1), 4.0f, (j / 3.0f) * -16.0f + (1.0f - j / 3.0f) * 16.0f),
+                /* topR */ 0.8f, /* bottomR */ 1.2f, /* h */ 6.0f, /* sliceCount */ 30, /* stackCount */ 10,
+                "brick", { {"solid", 0}, {"wireframe", 0} });
+            createSphereObject(pCore, "ball" + std::to_string(k++),
+                /* pos */ XMFLOAT3(10.0f * (i - 1), 8.0f, (j / 3.0f) * -16.0f + (1.0f - j / 3.0f) * 16.0f),
+                /* r */ 1.0f, /* subdivisionCount */ 3, "glass", { {"alpha", 0}, {"wireframe", 0} });
+        }
     }
-    appendVerticesToObjectGeometry(treeVertices, treeIndicies, treesGeo.get());
-    auto trees = std::make_unique<RenderItem>();
-    initRitemWithGeoInfo(pCore, treesGeo.get(), 1, trees.get());
-    // Pass the point to geometry shader and then the shader will generate 4 new points from the point passed.
-    trees->topologyType = D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
-    trees->materials = { pCore->materials["trees"].get() };
-    moveNamedRitemToAllRitems(pCore, "trees", std::move(trees));
-    bindRitemReferenceWithLayers(pCore, "trees", { {"billboard", 0} });
-    //pCore->ritems["trees"]->isVisible = false;
+
+    //createSphereObject(pCore, "test", XMFLOAT3(-0.7f, 7.0f, -0.4f), 0.1f, 2, "red", { {"solid", 0}, {"wireframe", 0} });
+
+    /* Build scene object end */
 
     updateRitemRangeObjConstBuffIdx(pCore->allRitems.data(), pCore->allRitems.size());
+    updateRitemRangeMaterialDataIdx(pCore->allRitems.data(), pCore->allRitems.size());
 
     pCore->frameResources.clear();
     createFrameResources(pCore);
@@ -125,15 +74,8 @@ void dev_initCoreElems(D3DCore* pCore) {
 }
 
 void dev_updateCoreObjConsts(D3DCore* pCore) {
-    float timeArg = pCore->timer->elapsedSecs;
-    auto lakeTexScaleMat = XMMatrixScaling(6.0f, 6.0f, 1.0f);
-    auto lakeTexTransMat = XMMatrixTranslation(timeArg * 0.005f, timeArg * 0.005f, 0.0f);
-    auto lakeTexMat = lakeTexTransMat * lakeTexScaleMat;
-    XMStoreFloat4x4(&pCore->ritems["lake"]->constData[0].texTrans,
-        XMMatrixTranspose(lakeTexMat));
-    pCore->ritems["lake"]->constData[0].hasDisplacementMap = 1;
-    pCore->ritems["lake"]->constData[0].hasNormalMap = 1;
-    pCore->ritems["lake"]->numDirtyFrames = NUM_FRAME_RESOURCES;
+    // There is no need to set dirty flag for initialization purpose.
+    XMStoreFloat4x4(&pCore->ritems["floor"]->constData[0].texTrans, XMMatrixScaling(5.0f, 5.0f, 1.0f));
 
     // Apply updates.
     auto currObjConstBuff = pCore->currFrameResource->objConstBuffCPU;
@@ -165,32 +107,32 @@ void dev_updateCoreProcConsts(D3DCore* pCore) {
 
     constData.ambientLight = { 0.6f, 0.6f, 0.65f, 1.0f };
 
+    /* Build scene light start */
+
     XMVECTOR lightDirection = -sphericalToCartesianDX(1.0f, XM_PIDIV4, XM_PIDIV4);
     XMStoreFloat3(&constData.lights[0].direction, lightDirection);
     constData.lights[0].strength = { 1.0f, 1.0f, 0.9f };
 
-    constData.fogColor = XMFLOAT4(DirectX::Colors::SkyBlue);
+    float st = abs(sinf(pCore->timer->elapsedSecs));
+    // Left eye of skull
+    constData.lights[1].position = { 0.7f, 7.0f, -0.4f };
+    constData.lights[1].strength = { 1.0f * st, 0.1f * st, 0.2f * st };
+    constData.lights[1].fallOffStart = 1.0f;
+    constData.lights[1].fallOffEnd = 2.0f;
+    // Right eye of skull
+    constData.lights[2].position = { -0.7f, 7.0f, -0.4f };
+    constData.lights[2].strength = { 1.0f * st, 0.1f * st, 0.2f * st };
+    constData.lights[2].fallOffStart = 1.0f;
+    constData.lights[2].fallOffEnd = 2.0f;
+
+    /* Build scene light end */
+
+    constData.fogColor = XMFLOAT4(DirectX::Colors::Black);
     constData.fogFallOffStart = 20.0f;
     constData.fogFallOffEnd = 80.0f;
 
     // Apply updates.
     memcpy(pCore->currFrameResource->procConstBuffCPU, &constData, sizeof(ProcConsts));
-}
-
-void dev_updateCoreMatConsts(D3DCore* pCore) {
-    XMStoreFloat4x4(&pCore->materials["grass"]->constData.matTrans,
-        XMMatrixTranspose(XMMatrixScaling(8.0f, 8.0f, 1.0f)));
-
-    // Apply updates.
-    auto currMatConstBuff = pCore->currFrameResource->matConstBuffCPU;
-    for (auto& mkv : pCore->materials) {
-        auto m = mkv.second.get();
-        if (m->numDirtyFrames > 0) {
-            memcpy(currMatConstBuff + m->matConstBuffIdx * calcConstBuffSize(sizeof(MatConsts)),
-                &m->constData, sizeof(MatConsts));
-            m->numDirtyFrames--;
-        }
-    }
 }
 
 void dev_updateCoreDynamicMesh(D3DCore* pCore) {
@@ -242,7 +184,6 @@ void dev_updateCoreData(D3DCore* pCore) {
 
     dev_updateCoreObjConsts(pCore);
     dev_updateCoreProcConsts(pCore);
-    dev_updateCoreMatConsts(pCore);
 }
 
 void dev_drawCoreElems(D3DCore* pCore) {
@@ -254,8 +195,16 @@ void dev_drawCoreElems(D3DCore* pCore) {
 
     pCore->cmdList->SetGraphicsRootSignature(pCore->rootSigs["main"].Get());
 
+    // Global process data
     auto procConstBuffAddr = pCore->currFrameResource->procConstBuffGPU->GetGPUVirtualAddress();
     pCore->cmdList->SetGraphicsRootConstantBufferView(1, procConstBuffAddr);
+
+    // Scene material infos
+    auto materialStructBuffAddr = pCore->currFrameResource->matStructBuffGPU->GetGPUVirtualAddress();
+    pCore->cmdList->SetGraphicsRootShaderResourceView(2, materialStructBuffAddr);
+
+    // Actual diffuse textures
+    pCore->cmdList->SetGraphicsRootDescriptorTable(3, pCore->srvUavHeap->GetGPUDescriptorHandleForHeapStart());
 
     auto msaaRtvDescHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(pCore->rtvHeap->GetCPUDescriptorHandleForHeapStart());
     msaaRtvDescHandle.Offset(2, pCore->rtvDescSize);
@@ -263,53 +212,31 @@ void dev_drawCoreElems(D3DCore* pCore) {
     pCore->cmdList->OMSetRenderTargets(1, &msaaRtvDescHandle, TRUE, &dsvDescHanlde);
 
     // Firstly draw all objects on MSAA back buffer.
-    clearBackBuff(msaaRtvDescHandle, Colors::SkyBlue, dsvDescHanlde, 1.0f, 0, pCore);
+    clearBackBuff(msaaRtvDescHandle, Colors::Black, dsvDescHanlde, 1.0f, 0, pCore);
     // Switch between solid mode and wireframe mode.
     if (GetAsyncKeyState('1') & 0x8000) {
         drawRitemLayerWithName(pCore, "wireframe");
-        drawRitemLayerWithName(pCore, "hill_tessellation_wireframe");
     }
     else {
         drawRitemLayerWithName(pCore, "solid");
-        drawRitemLayerWithName(pCore, "hill_tessellation");
-        drawRitemLayerWithName(pCore, "billboard");
-        drawRitemLayerWithName(pCore, "alpha_test");
-        if (GetAsyncKeyState('0') & 0x8000) {
-            drawRitemLayerWithName(pCore, "alpha_cartoon");
-        }
-        else {
-            drawRitemLayerWithName(pCore, "alpha");
-        }
+        drawRitemLayerWithName(pCore, "alpha");
     }
-
-    // There is no need to draw normals of billboards.
-    bool originVisibleFlag = pCore->ritems["trees"]->isVisible;
-    pCore->ritems["trees"]->isVisible = false;
-    if (GetAsyncKeyState('2') & 0x8000) {
-        drawAllRitemsFormatted(pCore, "ver_normal_visible",
-            D3D_PRIMITIVE_TOPOLOGY_POINTLIST, pCore->materials["red"].get());
-    }
-    if (GetAsyncKeyState('3') & 0x8000) {
-        drawAllRitemsFormatted(pCore, "tri_normal_visible",
-            D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST, pCore->materials["green"].get());
-    }
-    pCore->ritems["trees"]->isVisible = originVisibleFlag;
 
     // Post Processing.
     ID3D12Resource* processedOutput = nullptr;
     processedOutput = pCore->postprocessors["basic"]->process(pCore->msaaBackBuff.Get());
 
-    if (GetAsyncKeyState('4') & 0x8000) {
+    if (GetAsyncKeyState('2') & 0x8000) {
         processedOutput = pCore->postprocessors["gaussian_blur"]->process(processedOutput);
     }
-    if (GetAsyncKeyState('5') & 0x8000) {
+    if (GetAsyncKeyState('3') & 0x8000) {
         processedOutput = pCore->postprocessors["bilateral_blur"]->process(processedOutput);
     }
 
-    if (GetAsyncKeyState('6') & 0x8000) {
+    if (GetAsyncKeyState('4') & 0x8000) {
         processedOutput = pCore->postprocessors["sobel_operator"]->process(processedOutput);
     }
-    else if (GetAsyncKeyState('7') & 0x8000) {
+    else if (GetAsyncKeyState('5') & 0x8000) {
         auto sobelOutput = pCore->postprocessors["sobel_operator"]->process(processedOutput);
         ((ColorCompositor*)pCore->postprocessors["color_compositor"].get())
             ->bindBackgroundPlate(sobelOutput, ColorCompositor::MULTIPLY, 1.0f);
@@ -366,7 +293,7 @@ void dev_onMouseMove(WPARAM btnState, int x, int y, D3DCore* pCore) {
 
 void dev_onMouseScroll(WPARAM scrollInfo, D3DCore* pCore) {
     pCore->camera->isViewTransDirty = true;
-    zoomCamera(-GET_WHEEL_DELTA_WPARAM(scrollInfo), pCore->camera.get());
+    zoomCamera(GET_WHEEL_DELTA_WPARAM(scrollInfo), pCore->camera.get());
 }
 
 void updateRenderWindowCaptionInfo(D3DCore* pCore) {
@@ -401,28 +328,18 @@ void updateRenderWindowCaptionInfo(D3DCore* pCore) {
         caption += L", Wireframe Mode 线框模式";
     }
 
-    // Vertex normal visible.
-    if (GetAsyncKeyState('2') & 0x8000) {
-        caption += L", Vertex Normal Visible 顶点法线可视化（红色）";
-    }
-
-    // Triangle normal visible.
-    if (GetAsyncKeyState('3') & 0x8000) {
-        caption += L", Triangle Normal Visible 面法线可视化（绿色）";
-    }
-
     // Gaussian blur.
-    if (GetAsyncKeyState('4') & 0x8000) {
+    if (GetAsyncKeyState('2') & 0x8000) {
         caption += L", Gaussian Blur 高斯模糊滤镜";
     }
 
     // Bilateral blur.
-    if (GetAsyncKeyState('5') & 0x8000) {
+    if (GetAsyncKeyState('3') & 0x8000) {
         caption += L", Bilateral Blur 双边模糊滤镜";
     }
 
     // Sobel operator.
-    if (GetAsyncKeyState('6') & 0x8000) {
+    if (GetAsyncKeyState('4') & 0x8000) {
         caption += L", Sobel Operator 索贝尔轮廓算子";
         if (GetAsyncKeyState(VK_SPACE)) {
             caption += L"（白色画笔）";
@@ -431,13 +348,97 @@ void updateRenderWindowCaptionInfo(D3DCore* pCore) {
             caption += L"（黑色画笔）";
         }
     }
-    else if (GetAsyncKeyState('7') & 0x8000) {
+    else if (GetAsyncKeyState('5') & 0x8000) {
         caption += L", Outline Overlay 描边风格滤镜";
     }
 
-    if (GetAsyncKeyState('0') & 0x8000) {
-        caption += L", Cartoon Water 卡通水面";
-    }
-
     SetWindowText(hWnd, caption.c_str());
+}
+
+void createCubeObject(
+    D3DCore* pCore,
+    const std::string& name,
+    XMFLOAT3 pos, XMFLOAT3 xyz,
+    const std::string& materialName,
+    const std::unordered_map<std::string, UINT>& layerInfos)
+{
+    auto geo = std::make_unique<ObjectGeometry>();
+    generateCube(xyz, geo.get());
+    translateObjectGeometry(pos.x, pos.y, pos.z, geo.get());
+    auto obj = std::make_unique<RenderItem>();
+    initRitemWithGeoInfo(pCore, geo.get(), 1, obj.get());
+    obj->materials = { pCore->materials[materialName].get() };
+    moveNamedRitemToAllRitems(pCore, name, std::move(obj));
+    bindRitemReferenceWithLayers(pCore, name, layerInfos);
+}
+
+void createCylinderObject(
+    D3DCore* pCore,
+    const std::string& name,
+    XMFLOAT3 pos,
+    float topR, float bottomR, float h,
+    UINT sliceCount, UINT stackCount,
+    const std::string& materialName,
+    const std::unordered_map<std::string, UINT>& layerInfos)
+{
+    auto geo = std::make_unique<ObjectGeometry>();
+    generateCylinder(topR, bottomR, h, sliceCount, stackCount, geo.get());
+    rotateObjectGeometry(-XM_PIDIV2, 0.0f, 0.0f, geo.get());
+    translateObjectGeometry(pos.x, pos.y, pos.z, geo.get());
+    auto obj = std::make_unique<RenderItem>();
+    initRitemWithGeoInfo(pCore, geo.get(), 1, obj.get());
+    obj->materials = { pCore->materials[materialName].get() };
+    moveNamedRitemToAllRitems(pCore, name, std::move(obj));
+    bindRitemReferenceWithLayers(pCore, name, layerInfos);
+}
+
+void createSphereObject(
+    D3DCore* pCore,
+    const std::string& name,
+    XMFLOAT3 pos, float r,
+    UINT subdivisionCount,
+    const std::string& materialName,
+    const std::unordered_map<std::string, UINT>& layerInfos)
+{
+    auto geo = std::make_unique<ObjectGeometry>();
+    generateGeoSphere(r, subdivisionCount, geo.get());
+    translateObjectGeometry(pos.x, pos.y, pos.z, geo.get());
+    auto obj = std::make_unique<RenderItem>();
+    initRitemWithGeoInfo(pCore, geo.get(), 1, obj.get());
+    obj->materials = { pCore->materials[materialName].get() };
+    moveNamedRitemToAllRitems(pCore, name, std::move(obj));
+    bindRitemReferenceWithLayers(pCore, name, layerInfos);
+}
+
+void loadSkullModel(D3DCore* pCore) {
+    auto skullGeo = std::make_unique<ObjectGeometry>();
+    std::ifstream fin("models/skull.txt");
+    std::string skull_ignore;
+    UINT skullVerCount, skullTriCount;
+    fin >> skull_ignore >> skullVerCount;
+    fin >> skull_ignore >> skullTriCount;
+    skullGeo->vertices.resize(skullVerCount);
+    skullGeo->indices.resize(skullTriCount * 3);
+    fin >> skull_ignore >> skull_ignore >> skull_ignore >> skull_ignore;
+    for (UINT i = 0; i < skullVerCount; ++i) {
+        Vertex& ver = skullGeo->vertices[i];
+        fin >> ver.pos.x >> ver.pos.y >> ver.pos.z;
+        fin >> ver.normal.x >> ver.normal.y >> ver.normal.z;
+    }
+    fin >> skull_ignore >> skull_ignore >> skull_ignore;
+    for (UINT i = 0; i < skullTriCount; ++i) {
+        fin >> skullGeo->indices[i * 3];
+        fin >> skullGeo->indices[i * 3 + 1];
+        fin >> skullGeo->indices[i * 3 + 2];
+    }
+    skullGeo->locationInfo.indexCount = skullGeo->indices.size();
+    skullGeo->locationInfo.startIndexLocation = 0;
+    skullGeo->locationInfo.baseVertexLocation = 0;
+    scaleObjectGeometry(0.5f, 0.5f, 0.5f, skullGeo.get());
+    translateObjectGeometry(0.0f, 5.0f, 0.0f, skullGeo.get());
+    auto skull = std::make_unique<RenderItem>();
+    initRitemWithGeoInfo(pCore, skullGeo.get(), 1, skull.get());
+    skull->materials = { pCore->materials["skull"].get() };
+    moveNamedRitemToAllRitems(pCore, "skull", std::move(skull));
+    bindRitemReferenceWithLayers(pCore, "skull", { {"solid", 0}, {"wireframe", 0} });
 }

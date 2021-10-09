@@ -17,6 +17,8 @@ void initRitemWithGeoInfo(D3DCore* pCore, ObjectGeometry* geo, UINT constBuffSea
 // the indices to match their actual orders in the render item collection, which is done by this func.
 void updateRitemRangeObjConstBuffIdx(RenderItem** ppRitem, size_t ritemCount);
 
+void updateRitemRangeMaterialDataIdx(RenderItem** ppRitem, size_t ritemCount);
+
 UINT calcRitemRangeTotalObjConstBuffSeatCount(RenderItem** ppRitem, size_t ritemCount);
 
 void moveNamedRitemToAllRitems(D3DCore* pCore, std::string name, std::unique_ptr<RenderItem>&& movedRitem);

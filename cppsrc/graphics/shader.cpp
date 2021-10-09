@@ -29,22 +29,22 @@ void Shader::initWithHlslFile(const std::string& name,
     _funcFlag = flags;
     _entryPoints = entryPoints;
     if (flags & VS) {
-        funcs.vs = compileShader(filename, nullptr, entryPoints.vs, "vs_5_0");
+        funcs.vs = compileShader(filename, nullptr, entryPoints.vs, "vs_5_1");
     }
     if (flags & HS) {
-        funcs.hs = compileShader(filename, nullptr, entryPoints.hs, "hs_5_0");
+        funcs.hs = compileShader(filename, nullptr, entryPoints.hs, "hs_5_1");
     }
     if (flags & DS) {
-        funcs.ds = compileShader(filename, nullptr, entryPoints.ds, "ds_5_0");
+        funcs.ds = compileShader(filename, nullptr, entryPoints.ds, "ds_5_1");
     }
     if (flags & GS) {
-        funcs.gs = compileShader(filename, nullptr, entryPoints.gs, "gs_5_0");
+        funcs.gs = compileShader(filename, nullptr, entryPoints.gs, "gs_5_1");
     }
     if (flags & PS) {
-        funcs.ps = compileShader(filename, nullptr, entryPoints.ps, "ps_5_0");
+        funcs.ps = compileShader(filename, nullptr, entryPoints.ps, "ps_5_1");
     }
     if (flags & CS) {
-        funcs.cs = compileShader(filename, nullptr, entryPoints.cs, "cs_5_0");
+        funcs.cs = compileShader(filename, nullptr, entryPoints.cs, "cs_5_1");
     }
 }
 

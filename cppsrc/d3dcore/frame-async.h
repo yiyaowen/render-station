@@ -28,10 +28,13 @@ struct FrameResource {
     // data itself can be stored at any reasonable position if the CBVs are set properly.
     BYTE* objConstBuffCPU = nullptr;
     ComPtr<ID3D12Resource> objConstBuffGPU = nullptr;
+
     BYTE* procConstBuffCPU = nullptr;
     ComPtr<ID3D12Resource> procConstBuffGPU = nullptr;
-    BYTE* matConstBuffCPU = nullptr;
-    ComPtr<ID3D12Resource> matConstBuffGPU = nullptr;
+
+    ComPtr<ID3DBlob> matStructBuffCPU = nullptr;
+    ComPtr<ID3D12Resource> matStructBuffUploader = nullptr;
+    ComPtr<ID3D12Resource> matStructBuffGPU = nullptr;
 
     // Dynamic mesh, i.e. dynamic vertex buffer, should be updated in frame resource.
     // For those meshes that will be updated frequently, we store many copies in
