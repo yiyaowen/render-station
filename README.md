@@ -109,4 +109,8 @@ GPU计算着色器优化，稳定40帧以上：
 
 ![](https://raw.githubusercontent.com/yiyaowen/render-station-demo-image/main/hill-tessellation-near.png)
 
+使用动态资源索引技术构建的场景：
+
+![](https://raw.githubusercontent.com/yiyaowen/render-station-demo-image/main/a_test_scene_with_dynamic_resource_index.png)
+
 === 我也是有底线的 ===
