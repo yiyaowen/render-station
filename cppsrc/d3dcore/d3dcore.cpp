@@ -227,7 +227,7 @@ void createRootSigs(D3DCore* pCore) {
     auto samplers = generateStaticSamplers();
 
     // A root signature is an array of root parameters.
-    CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(6, slotRootParameter, samplers.size(), samplers.data(),
+    CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(6, slotRootParameter, (UINT)samplers.size(), samplers.data(),
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
     createRootSig(pCore, "main", &rootSigDesc);
 }
@@ -361,7 +361,7 @@ void createBasicMaterials(D3DCore* pCore) {
     red->matData.diffuseAlbedo = XMFLOAT4(Colors::Red);
     red->matData.fresnelR0 = { 1.0f, 0.0f, 0.0f };
     red->matData.roughness = 0.0f;
-    red->matData.diffuseMapIndex = red->texSrvHeapIdx;
+    red->matData.diffuseMapIndex = (UINT)red->texSrvHeapIdx;
     pCore->materials[red->name] = std::move(red);
 
     auto green = std::make_unique<Material>();
@@ -371,7 +371,7 @@ void createBasicMaterials(D3DCore* pCore) {
     green->matData.diffuseAlbedo = XMFLOAT4(Colors::Green);
     green->matData.fresnelR0 = { 0.0f, 1.0f, 0.0f };
     green->matData.roughness = 0.0f;
-    green->matData.diffuseMapIndex = green->texSrvHeapIdx;
+    green->matData.diffuseMapIndex = (UINT)green->texSrvHeapIdx;
     pCore->materials[green->name] = std::move(green);
 
     auto blue = std::make_unique<Material>();
@@ -381,7 +381,7 @@ void createBasicMaterials(D3DCore* pCore) {
     blue->matData.diffuseAlbedo = XMFLOAT4(Colors::Blue);
     blue->matData.fresnelR0 = { 0.0f, 0.0f, 1.0f };
     blue->matData.roughness = 0.0f;
-    blue->matData.diffuseMapIndex = blue->texSrvHeapIdx;
+    blue->matData.diffuseMapIndex = (UINT)blue->texSrvHeapIdx;
     pCore->materials[blue->name] = std::move(blue);
 
     auto grass = std::make_unique<Material>();
@@ -391,7 +391,7 @@ void createBasicMaterials(D3DCore* pCore) {
     grass->matData.diffuseAlbedo = { 0.4f, 0.5f, 0.4f, 1.0f };
     grass->matData.fresnelR0 = { 0.001f, 0.001f, 0.001f };
     grass->matData.roughness = 0.8f;
-    grass->matData.diffuseMapIndex = grass->texSrvHeapIdx;
+    grass->matData.diffuseMapIndex = (UINT)grass->texSrvHeapIdx;
     pCore->materials[grass->name] = std::move(grass);
 
     auto water = std::make_unique<Material>();
@@ -401,7 +401,7 @@ void createBasicMaterials(D3DCore* pCore) {
     water->matData.diffuseAlbedo = { 0.5f, 0.5f, 0.6f, 0.3f };
     water->matData.fresnelR0 = { 0.1f, 0.1f, 0.1f };
     water->matData.roughness = 0.0f;
-    water->matData.diffuseMapIndex = water->texSrvHeapIdx;
+    water->matData.diffuseMapIndex = (UINT)water->texSrvHeapIdx;
     pCore->materials[water->name] = std::move(water);
 
     auto crate = std::make_unique<Material>();
@@ -411,7 +411,7 @@ void createBasicMaterials(D3DCore* pCore) {
     crate->matData.diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
     crate->matData.fresnelR0 = { 0.01f, 0.01f, 0.01f };
     crate->matData.roughness = 0.4f;
-    crate->matData.diffuseMapIndex = crate->texSrvHeapIdx;
+    crate->matData.diffuseMapIndex = (UINT)crate->texSrvHeapIdx;
     pCore->materials[crate->name] = std::move(crate);
 
     auto fence = std::make_unique<Material>();
@@ -421,7 +421,7 @@ void createBasicMaterials(D3DCore* pCore) {
     fence->matData.diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
     fence->matData.fresnelR0 = { 0.06f, 0.06f, 0.06f };
     fence->matData.roughness = 0.1f;
-    fence->matData.diffuseMapIndex = fence->texSrvHeapIdx;
+    fence->matData.diffuseMapIndex = (UINT)fence->texSrvHeapIdx;
     pCore->materials[fence->name] = std::move(fence);
 
     auto brick = std::make_unique<Material>();
@@ -431,7 +431,7 @@ void createBasicMaterials(D3DCore* pCore) {
     brick->matData.diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
     brick->matData.fresnelR0 = { 0.002f, 0.002f, 0.002f };
     brick->matData.roughness = 0.9f;
-    brick->matData.diffuseMapIndex = brick->texSrvHeapIdx;
+    brick->matData.diffuseMapIndex = (UINT)brick->texSrvHeapIdx;
     pCore->materials[brick->name] = std::move(brick);
 
     auto checkboard = std::make_unique<Material>();
@@ -441,7 +441,7 @@ void createBasicMaterials(D3DCore* pCore) {
     checkboard->matData.diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
     checkboard->matData.fresnelR0 = { 0.008f, 0.008f, 0.008f };
     checkboard->matData.roughness = 0.6f;
-    checkboard->matData.diffuseMapIndex = checkboard->texSrvHeapIdx;
+    checkboard->matData.diffuseMapIndex = (UINT)checkboard->texSrvHeapIdx;
     pCore->materials[checkboard->name] = std::move(checkboard);
 
     auto skull = std::make_unique<Material>();
@@ -451,7 +451,7 @@ void createBasicMaterials(D3DCore* pCore) {
     skull->matData.diffuseAlbedo = { 0.6f, 0.6f, 0.6f, 1.0f };
     skull->matData.fresnelR0 = { 0.003f, 0.003f, 0.003f };
     skull->matData.roughness = 0.7f;
-    skull->matData.diffuseMapIndex = skull->texSrvHeapIdx;
+    skull->matData.diffuseMapIndex = (UINT)skull->texSrvHeapIdx;
     pCore->materials[skull->name] = std::move(skull);
 
     auto mirror = std::make_unique<Material>();
@@ -461,7 +461,7 @@ void createBasicMaterials(D3DCore* pCore) {
     mirror->matData.diffuseAlbedo = { 1.0f, 1.0f, 0.8f, 0.8f };
     mirror->matData.fresnelR0 = { 0.5f, 0.5f, 0.5f };
     mirror->matData.roughness = 0.0f;
-    mirror->matData.diffuseMapIndex = mirror->texSrvHeapIdx;
+    mirror->matData.diffuseMapIndex = (UINT)mirror->texSrvHeapIdx;
     pCore->materials[mirror->name] = std::move(mirror);
 
     auto shadow = std::make_unique<Material>();
@@ -471,7 +471,7 @@ void createBasicMaterials(D3DCore* pCore) {
     shadow->matData.diffuseAlbedo = { 0.0f, 0.0f, 0.0f, 0.5f };
     shadow->matData.fresnelR0 = { 0.001f, 0.001f, 0.001f };
     shadow->matData.roughness = 0.0f;
-    shadow->matData.diffuseMapIndex = shadow->texSrvHeapIdx;
+    shadow->matData.diffuseMapIndex = (UINT)shadow->texSrvHeapIdx;
     pCore->materials[shadow->name] = std::move(shadow);
 
     auto tile = std::make_unique<Material>();
@@ -481,7 +481,7 @@ void createBasicMaterials(D3DCore* pCore) {
     tile->matData.diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
     tile->matData.fresnelR0 = { 0.002f, 0.002f, 0.002f };
     tile->matData.roughness = 0.9f;
-    tile->matData.diffuseMapIndex = tile->texSrvHeapIdx;
+    tile->matData.diffuseMapIndex = (UINT)tile->texSrvHeapIdx;
     pCore->materials[tile->name] = std::move(tile);
 
     auto stone = std::make_unique<Material>();
@@ -491,7 +491,7 @@ void createBasicMaterials(D3DCore* pCore) {
     stone->matData.diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
     stone->matData.fresnelR0 = { 0.002f, 0.002f, 0.002f };
     stone->matData.roughness = 0.9f;
-    stone->matData.diffuseMapIndex = stone->texSrvHeapIdx;
+    stone->matData.diffuseMapIndex = (UINT)stone->texSrvHeapIdx;
     pCore->materials[stone->name] = std::move(stone);
 }
 
@@ -568,7 +568,7 @@ void loadBasicTextures(D3DCore* pCore) {
 void createDescHeaps(D3DCore* pCore) {
     // SRV and UAV heap
     D3D12_DESCRIPTOR_HEAP_DESC srvUavHeapDesc = {};
-    srvUavHeapDesc.NumDescriptors = pCore->textures2d.size() + pCore->textures2darray.size();
+    srvUavHeapDesc.NumDescriptors = (UINT)(pCore->textures2d.size() + pCore->textures2darray.size());
     srvUavHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     srvUavHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     checkHR(pCore->device->CreateDescriptorHeap(&srvUavHeapDesc, IID_PPV_ARGS(&pCore->srvUavHeap)));

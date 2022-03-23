@@ -16,8 +16,8 @@ void initCamera(int viewW, int viewH, Camera* pCamera) {
 void resizeCameraView(int w, int h, Camera* pCamera) {
     pCamera->screenViewport.TopLeftX = 0;
     pCamera->screenViewport.TopLeftY = 0;
-    pCamera->screenViewport.Width = w;
-    pCamera->screenViewport.Height = h;
+    pCamera->screenViewport.Width = (FLOAT)w;
+    pCamera->screenViewport.Height = (FLOAT)h;
     pCamera->screenViewport.MinDepth = 0.0f;
     pCamera->screenViewport.MaxDepth = 1.0f;
 

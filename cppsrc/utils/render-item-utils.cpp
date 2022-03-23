@@ -25,7 +25,7 @@ void initRitemWithGeoInfo(D3DCore* pCore, ObjectGeometry* geo, UINT constBuffSea
 void updateRitemRangeObjConstBuffIdx(RenderItem** ppRitem, size_t ritemCount) {
     size_t tmpStartIdx = 0;
     for (size_t i = 0; i < ritemCount; ++i) {
-        ppRitem[i]->objConstBuffStartIdx = tmpStartIdx;
+        ppRitem[i]->objConstBuffStartIdx = (UINT)tmpStartIdx;
         tmpStartIdx += ppRitem[i]->objConstBuffSeatCount;
     }
 }
@@ -34,7 +34,7 @@ void updateRitemRangeMaterialDataIdx(RenderItem** ppRitem, size_t ritemCount) {
     for (size_t i = 0; i < ritemCount; ++i) {
         for (auto& objBuff : ppRitem[i]->constData) {
             // It is temporarily assumed that each render item only holds one material object.
-            objBuff.materialIndex = ppRitem[i]->materials[0]->matStructBuffIdx;
+            objBuff.materialIndex = (UINT)ppRitem[i]->materials[0]->matStructBuffIdx;
         }
     }
 }

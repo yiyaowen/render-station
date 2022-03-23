@@ -18,6 +18,8 @@ class BasicProcess {
 public:
     BasicProcess(D3DCore* pCore);
 
+    virtual ~BasicProcess() { }
+
     // Called init func immediately after constructed to create off-screen texture resources.
     virtual void init();
 

@@ -21,11 +21,11 @@ void initVmesh(D3DCore* pCore, const void* vertexData, UINT64 vertexDataSize,
 
     pMesh->vertexBuffView.BufferLocation = pMesh->vertexBuffGPU->GetGPUVirtualAddress();
     pMesh->vertexBuffView.StrideInBytes = sizeof(Vertex);
-    pMesh->vertexBuffView.SizeInBytes = vertexDataSize;
+    pMesh->vertexBuffView.SizeInBytes = (UINT)vertexDataSize;
 
     pMesh->indexBuffView.BufferLocation = pMesh->indexBuffGPU->GetGPUVirtualAddress();
     pMesh->indexBuffView.Format = DXGI_FORMAT_R32_UINT;
-    pMesh->indexBuffView.SizeInBytes = indexDataSize;
+    pMesh->indexBuffView.SizeInBytes = (UINT)indexDataSize;
 }
 
 void createDefaultBuffs(D3DCore* pCore, const void* initData, UINT64 byteSize,

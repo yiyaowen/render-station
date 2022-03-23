@@ -63,7 +63,7 @@ void WaveSimulator::updateWithCPUGeneralCompute() {
 	// Wait disturb CD.
 	if (pCore->timer->elapsedSecs > lastDisturbTime + _disturbCD) {
 
-		lastDisturbTime = pCore->timer->elapsedSecs;
+		lastDisturbTime = (float)pCore->timer->elapsedSecs;
 
 		UINT x = randint(1, _M - 2);
 		UINT y = randint(1, _N - 2);
@@ -79,7 +79,7 @@ void WaveSimulator::updateWithCPUGeneralCompute() {
 	// Wait update CD.
 	if (pCore->timer->elapsedSecs > lastUpdateTime + _t) {
 
-		lastUpdateTime = pCore->timer->elapsedSecs;
+		lastUpdateTime = (float)pCore->timer->elapsedSecs;
 
 		for (UINT i = 1; i < _M - 1; ++i) {
 			for (UINT j = 1; j < _N - 1; ++j) {
@@ -311,7 +311,7 @@ void WaveSimulator::updateWithComputeShaderOptimized() {
 	// Wait disturb CD.
 	if (pCore->timer->elapsedSecs > lastDisturbTime + _disturbCD) {
 
-		lastDisturbTime = pCore->timer->elapsedSecs;
+		lastDisturbTime = (float)pCore->timer->elapsedSecs;
 
 		int x = randint(1, _M - 2);
 		int y = randint(1, _N - 2);
@@ -340,7 +340,7 @@ void WaveSimulator::updateWithComputeShaderOptimized() {
 	// Wait update CD.
 	if (pCore->timer->elapsedSecs > lastUpdateTime + _t) {
 
-		lastUpdateTime = pCore->timer->elapsedSecs;
+		lastUpdateTime = (float)pCore->timer->elapsedSecs;
 
 		// Dispatch CS.
 		pCore->cmdList->SetComputeRoot32BitConstants(0, 1, &_a1, 0);

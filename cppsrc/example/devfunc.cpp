@@ -103,7 +103,7 @@ void dev_updateCoreProcConsts(D3DCore* pCore) {
     XMStoreFloat4x4(&constData.projTrans, XMMatrixTranspose(projMat));
 
     constData.eyePosW = pCore->camera->position;
-    constData.elapsedSecs = pCore->timer->elapsedSecs;
+    constData.elapsedSecs = (float)pCore->timer->elapsedSecs;
 
     constData.ambientLight = { 0.6f, 0.6f, 0.65f, 1.0f };
 
@@ -113,7 +113,7 @@ void dev_updateCoreProcConsts(D3DCore* pCore) {
     XMStoreFloat3(&constData.lights[0].direction, lightDirection);
     constData.lights[0].strength = { 1.0f, 1.0f, 0.9f };
 
-    float st = abs(sinf(pCore->timer->elapsedSecs));
+    float st = (float)abs(sin(pCore->timer->elapsedSecs));
     // Left eye of skull
     constData.lights[1].position = { 0.7f, 7.0f, -0.4f };
     constData.lights[1].strength = { 1.0f * st, 0.1f * st, 0.2f * st };
@@ -279,8 +279,8 @@ void dev_onMouseUp(WPARAM btnState, int x, int y, D3DCore* pCore) {
 
 void dev_onMouseMove(WPARAM btnState, int x, int y, D3DCore* pCore) {
     Camera* camera = pCore->camera.get();
-    float lastMouseX = camera->lastMouseX;
-    float lastMouseY = camera->lastMouseY;
+    float lastMouseX = (float)camera->lastMouseX;
+    float lastMouseY = (float)camera->lastMouseY;
 
     if (GetAsyncKeyState(VK_RBUTTON) & 0x8000) {
         pCore->camera->isViewTransDirty = true;
@@ -431,7 +431,7 @@ void loadSkullModel(D3DCore* pCore) {
         fin >> skullGeo->indices[i * 3 + 1];
         fin >> skullGeo->indices[i * 3 + 2];
     }
-    skullGeo->locationInfo.indexCount = skullGeo->indices.size();
+    skullGeo->locationInfo.indexCount = (UINT)skullGeo->indices.size();
     skullGeo->locationInfo.startIndexLocation = 0;
     skullGeo->locationInfo.baseVertexLocation = 0;
     scaleObjectGeometry(0.5f, 0.5f, 0.5f, skullGeo.get());

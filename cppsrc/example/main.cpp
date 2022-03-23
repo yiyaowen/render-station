@@ -33,17 +33,21 @@ D3DCore* pRcore = nullptr;
 
 WNDPROC_SIGNATURE(renderWindowProc) {
     static int wndW = 800, wndH = 600;
+
+    // We don't want to response to user input until the renderer is initialized;
+    // however, "return 0" directly will cause CreateWindow gives a NULL window
+    // and GetLastError says S_OK, since we don't call the default func in wndproc.
+    if (pRcore == nullptr) goto def_proc;
+
     switch (msg) {
     case WM_SIZE:
         wndW = LOWORD(lParam);
         wndH = HIWORD(lParam);
-        if (pRcore != nullptr) {
-            if (wParam != SIZE_MINIMIZED) {
-                resizeSwapBuffs(wndW, wndH, pRcore->clearColor, pRcore);
-                resizeCameraView(wndW, wndH, pRcore->camera.get());
-                for (auto p = pRcore->postprocessors.begin(); p != pRcore->postprocessors.end(); ++p)
-                    p->second->onResize(wndW, wndH);
-            }
+        if (wParam != SIZE_MINIMIZED) {
+            resizeSwapBuffs(wndW, wndH, pRcore->clearColor, pRcore);
+            resizeCameraView(wndW, wndH, pRcore->camera.get());
+            for (auto p = pRcore->postprocessors.begin(); p != pRcore->postprocessors.end(); ++p)
+                p->second->onResize(wndW, wndH);
         }
         return 0;
     case WM_KEYDOWN:
@@ -72,6 +76,7 @@ WNDPROC_SIGNATURE(renderWindowProc) {
         PostQuitMessage(0);
         return 0;
     }
+def_proc:
     return DefWindowProc(hWnd, msg, wParam, lParam);
 }
 
@@ -100,7 +105,12 @@ void createRenderWindow(HINSTANCE hInst, RenderWindow** ppWnd) {
 
     pWnd->hMainWnd = CreateWindow(L"RenderWindow", L"Render Station", WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, CW_USEDEFAULT, 800, 600, nullptr, nullptr, hInst, nullptr);
+
     if (!pWnd->hMainWnd) {
+        // output detail message
+        HRESULT error = GetLastError();
+        OutputDebugString(_com_error(error).ErrorMessage());
+        // pop up a warning dialog
         MessageBox(nullptr, L"Create Render Window Failed", L"Error", MB_OK | MB_ICONERROR);
         exit(1);
     }
@@ -121,12 +131,25 @@ int startRenderWindowMsgLoop(RenderWindow* pWnd) {
         else {
             tickTimer(pRcore->timer.get());
             updateRenderWindowCaptionInfo(pRcore);
-            dev_updateCameraWalk(pRcore->timer->deltaSecs, pRcore->camera.get());
+            dev_updateCameraWalk((float)pRcore->timer->deltaSecs, pRcore->camera.get());
             dev_updateCoreData(pRcore);
             dev_drawCoreElems(pRcore);
         }
     }
-    return msg.wParam;
+    return (int)msg.wParam;
+}
+
+static ComPtr<IDXGIDebug> queryDebugInterface()
+{
+    typedef HRESULT(__stdcall* fPtr)(const IID&, void**);
+    HMODULE hDll = LoadLibrary(L"dxgidebug.dll");
+    assert(hDll != nullptr);
+    fPtr DXGIGetDebugInterface = (fPtr)GetProcAddress(hDll, "DXGIGetDebugInterface");
+
+    ComPtr<IDXGIDebug> pDXGIDebug;
+    DXGIGetDebugInterface(IID_PPV_ARGS(&pDXGIDebug));
+
+    return pDXGIDebug;
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
@@ -138,9 +161,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         debugController->EnableDebugLayer();
     }
 #endif
-    srand(time(nullptr));
+    srand((unsigned int)time(nullptr));
     createRenderWindow(hInstance, &pRwnd);
-    createD3DCore(pRwnd->hMainWnd, XMFLOAT4(DirectX::Colors::SkyBlue), &pRcore);
+    createD3DCore(pRwnd->hMainWnd, XMFLOAT4(DirectX::Colors::Black), &pRcore);
     startRenderWindowMsgLoop(pRwnd);
+    // disable D3D12 Live Object WARNING
+    flushCmdQueue(pRcore);
+    delete pRcore;
+    delete pRwnd;
+    queryDebugInterface()->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
     return 0;
 }

@@ -61,6 +61,10 @@ void SobelOperator::onResize(UINT w, UINT h) {
 }
 
 ID3D12Resource* SobelOperator::process(ID3D12Resource* flatOrigin) {
+
+    ID3D12DescriptorHeap* descHeaps[] = { texDescHeap.Get() };
+    pCore->cmdList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
+
     pCore->cmdList->SetComputeRootSignature(pCore->rootSigs["sobel_operator"].Get());
 
     pCore->cmdList->ResourceBarrier(1,

@@ -100,6 +100,6 @@ float randfloat(float min, float max)
 }
 
 float randfloatEx(const std::vector<std::pair<float, float>>& ranges) {
-    int randIdx = randint(0, ranges.size() - 1);
+    int randIdx = randint(0, (int)(ranges.size() - 1));
     return randfloat(ranges[randIdx].first, ranges[randIdx].second);
 }

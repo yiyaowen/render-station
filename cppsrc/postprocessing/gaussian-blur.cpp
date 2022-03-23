@@ -79,7 +79,7 @@ ID3D12Resource* GaussianBlur::process(ID3D12Resource* flatOrigin) {
     pCore->cmdList->SetComputeRootSignature(pCore->rootSigs["gaussian_blur"].Get());
 
     pCore->cmdList->SetComputeRoot32BitConstants(0, 1, &_blurRadius, 0);
-    pCore->cmdList->SetComputeRoot32BitConstants(0, weights.size(), weights.data(), 1);
+    pCore->cmdList->SetComputeRoot32BitConstants(0, (UINT)weights.size(), weights.data(), 1);
 
     pCore->cmdList->ResourceBarrier(1,
         &CD3DX12_RESOURCE_BARRIER::Transition(

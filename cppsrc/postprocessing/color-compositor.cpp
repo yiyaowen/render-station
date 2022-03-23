@@ -63,6 +63,10 @@ void ColorCompositor::onResize(UINT w, UINT h) {
 }
 
 ID3D12Resource* ColorCompositor::process(ID3D12Resource* flatOrigin) {
+
+    ID3D12DescriptorHeap* descHeaps[] = { texDescHeap.Get() };
+    pCore->cmdList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
+
     pCore->cmdList->SetComputeRootSignature(pCore->rootSigs["color_compositor"].Get());
 
     pCore->cmdList->ResourceBarrier(1,
@@ -97,7 +101,7 @@ ID3D12Resource* ColorCompositor::process(ID3D12Resource* flatOrigin) {
 
     pCore->cmdList->SetPipelineState(pCore->PSOs["color_compositor"].Get());
     pCore->cmdList->SetComputeRoot32BitConstant(0, _mixType, 0);
-    pCore->cmdList->SetComputeRoot32BitConstant(0, _weight, 1);
+    pCore->cmdList->SetComputeRoot32BitConstant(0, (UINT)_weight, 1);
     pCore->cmdList->SetComputeRootDescriptorTable(1, texA_SrvGPU);
     pCore->cmdList->SetComputeRootDescriptorTable(2, texB_SrvGPU);
     pCore->cmdList->SetComputeRootDescriptorTable(3, texC_UavGPU);
@@ -147,7 +151,7 @@ void ColorCompositor::bindBackgroundPlate(ID3D12Resource* bkgn, int mixType, flo
         &CD3DX12_RESOURCE_BARRIER::Transition(
             textures["B"].Get(),
             D3D12_RESOURCE_STATE_COPY_DEST,
-            D3D12_RESOURCE_STATE_GENERIC_READ));
+            D3D12_RESOURCE_STATE_COMMON));
 }
 
 void ColorCompositor::createOffscreenTextureResources() {

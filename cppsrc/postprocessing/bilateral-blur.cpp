@@ -72,7 +72,7 @@ ID3D12Resource* BilateralBlur::process(ID3D12Resource* flatOrigin) {
 
     pCore->cmdList->SetComputeRoot32BitConstants(0, 1, &_blurRadius, 0);
     pCore->cmdList->SetComputeRoot32BitConstants(0, 1, &_twoSigma2, 1);
-    pCore->cmdList->SetComputeRoot32BitConstants(0, weights.size(), weights.data(), 2);
+    pCore->cmdList->SetComputeRoot32BitConstants(0, (UINT)weights.size(), weights.data(), 2);
 
     pCore->cmdList->ResourceBarrier(1,
         &CD3DX12_RESOURCE_BARRIER::Transition(

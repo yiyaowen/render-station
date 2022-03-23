@@ -110,7 +110,7 @@ void subdivide(ObjectGeometry* geo) {
         geo->vertices.push_back(v2);
         geo->vertices.push_back({ midpoint(v2.pos, v0.pos), midpoint(v2.normal, v0.normal), midpoint(v2.uv, v0.uv) });
 
-        UINT32 b = i * 6; // base index
+        UINT32 b = (UINT32)(i * 6); // base index
         geo->indices.push_back(b);
         geo->indices.push_back(b + 1);
         geo->indices.push_back(b + 5);
@@ -130,7 +130,7 @@ void subdivide(ObjectGeometry* geo) {
 }
 
 void appendVerticesToObjectGeometry(const std::vector<Vertex>& ver, const std::vector<UINT32>& idx, ObjectGeometry* objGeo) {
-    UINT count = max(ver.size(), idx.size());
+    UINT count = (UINT)max(ver.size(), idx.size());
     for (UINT i = 0; i < count; ++i) {
         objGeo->vertices.push_back(ver[i]);
         objGeo->indices.push_back(idx[i]);
@@ -211,7 +211,7 @@ void generateCube(XMFLOAT3 xyz, ObjectGeometry* cube) {
         22, 21, 23
     };
 
-    cube->locationInfo.indexCount = cube->indices.size();
+    cube->locationInfo.indexCount = (UINT)cube->indices.size();
     cube->locationInfo.startIndexLocation = 0;
     cube->locationInfo.baseVertexLocation = 0;
 }
@@ -271,7 +271,7 @@ void generateCylinder(float topR, float bottomR, float h, UINT sliceCount, UINT 
     generateCylinderCap(true, topR, h / 2, sliceCount, cylinder);
     generateCylinderCap(false, bottomR, -h / 2, sliceCount, cylinder);
 
-    cylinder->locationInfo.indexCount = cylinder->indices.size();
+    cylinder->locationInfo.indexCount = (UINT)cylinder->indices.size();
     cylinder->locationInfo.startIndexLocation = 0;
     cylinder->locationInfo.baseVertexLocation = 0;
 }
@@ -279,8 +279,8 @@ void generateCylinder(float topR, float bottomR, float h, UINT sliceCount, UINT 
 void generateCylinderCap(bool isTop, float r, float offsetH, UINT sliceCount, ObjectGeometry* cylinder) {
     float deltaTheta = XM_2PI / sliceCount;
     cylinder->vertices.push_back({ XMFLOAT3(0, 0, offsetH) });
-    UINT originBaseIdx = cylinder->vertices.size();
-    UINT capCenterIdx = cylinder->vertices.size() - 1;
+    UINT originBaseIdx = (UINT)cylinder->vertices.size();
+    UINT capCenterIdx = (UINT)cylinder->vertices.size() - 1;
     XMFLOAT3 normal = isTop ? XMFLOAT3{ 0.0f, 0.0f, 1.0f } : XMFLOAT3{ 0.0f, 0.0f, -1.0f };
     for (UINT i = 0; i < sliceCount + 1; ++i) {
         float x = r * cosf(i * deltaTheta);
@@ -337,7 +337,7 @@ void generateSphere(float r, UINT sliceCount, UINT ringCount, ObjectGeometry* sp
     generateSphereCap(true, r, sliceCount, ringCount, sphere);
     generateSphereCap(false, r, sliceCount, ringCount, sphere);
 
-    sphere->locationInfo.indexCount = sphere->indices.size();
+    sphere->locationInfo.indexCount = (UINT)sphere->indices.size();
     sphere->locationInfo.startIndexLocation = 0;
     sphere->locationInfo.baseVertexLocation = 0;
 }
@@ -349,8 +349,8 @@ void generateSphereCap(bool isTop, float r, UINT sliceCount, UINT ringCount, Obj
     float r2 = r * sinf(deltaPhi);
     float circlePhi = isTop ? deltaPhi : (XM_PI - deltaPhi);
     sphere->vertices.push_back({ XMFLOAT3(0, 0, isTop ? r : -r), XMFLOAT3(0, 0, isTop ? 1.0f : -1.0f) });
-    UINT originBaseIdx = sphere->vertices.size();
-    UINT capCenterIdx = sphere->vertices.size() - 1;
+    UINT originBaseIdx = (UINT)sphere->vertices.size();
+    UINT capCenterIdx = (UINT)sphere->vertices.size() - 1;
     XMFLOAT3 eachNormal;
     for (UINT i = 0; i < sliceCount + 1; ++i) {
         float x = r2 * cosf(i * deltaTheta);
@@ -399,7 +399,7 @@ void generateGeoSphere(float r, int subdivisionLevel, ObjectGeometry* gs) {
         XMStoreFloat3(&gs->vertices[i].normal, ver_nor);
     }
 
-    gs->locationInfo.indexCount = gs->indices.size();
+    gs->locationInfo.indexCount = (UINT)gs->indices.size();
     gs->locationInfo.startIndexLocation = 0;
     gs->locationInfo.baseVertexLocation = 0;
 }
@@ -454,7 +454,7 @@ void generateGrid(float w, float h, UINT m, UINT n, ObjectGeometry* grid) {
         }
     }
 
-    grid->locationInfo.indexCount = grid->indices.size();
+    grid->locationInfo.indexCount = (UINT)grid->indices.size();
     grid->locationInfo.startIndexLocation = 0;
     grid->locationInfo.baseVertexLocation = 0;
 }
@@ -498,7 +498,7 @@ void generateCircle2D(XMFLOAT3 center, XMFLOAT3 normal, float radius, UINT n, Ob
     circle->vertices[n] = circle->vertices[0];
     circle->indices[n] = n;
 
-    circle->locationInfo.indexCount = circle->indices.size();
+    circle->locationInfo.indexCount = (UINT)circle->indices.size();
     circle->locationInfo.startIndexLocation = 0;
     circle->locationInfo.baseVertexLocation = 0;
 }

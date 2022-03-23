@@ -82,7 +82,7 @@ void drawRenderItemsInLayer(D3DCore* pCore, std::string layerName, RenderItem** 
 void drawRitemLayerWithName(D3DCore* pCore, std::string name) {
     pCore->cmdList->SetPipelineState(pCore->PSOs[name].Get());
     auto ritemLayer = findRitemLayerWithName(name, pCore->ritemLayers);
-    drawRenderItemsInLayer(pCore, name, ritemLayer.data(), ritemLayer.size());
+    drawRenderItemsInLayer(pCore, name, ritemLayer.data(), (UINT)ritemLayer.size());
 }
 
 UINT calcConstBuffSize(UINT byteSize)
@@ -108,7 +108,7 @@ void createConstBuffPair(D3DCore* pCore, size_t elemSize, UINT elemCount,
     checkHR(pCore->device->CreateCommittedResource(
         &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
         D3D12_HEAP_FLAG_NONE,
-        &CD3DX12_RESOURCE_DESC::Buffer(calcConstBuffSize(elemSize) * elemCount),
+        &CD3DX12_RESOURCE_DESC::Buffer(calcConstBuffSize((UINT)elemSize) * elemCount),
         D3D12_RESOURCE_STATE_GENERIC_READ,
         nullptr,
         IID_PPV_ARGS(ppBuffGPU)));

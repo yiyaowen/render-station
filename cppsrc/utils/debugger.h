@@ -8,6 +8,7 @@
 #pragma once
 
 #include <comdef.h>
+#include <dxgidebug.h>
 #include <string>
 #include <windows.h>
 #pragma warning(disable:4996) // Disable insecure func warning.
