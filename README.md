@@ -1,6 +1,10 @@
 # RenderStation
 现在开始使用渲染作坊&lt;DX12>，一起创造奇妙的动画与游戏。Create fantastic animation and game with Render Station&lt;DX12>.
 
+## 项目构建注意事项
+
+建议使用 Visual Studio 构建，需要安装 C/C++ 环境。首先下载 Release 中的 rs-models-textures.zip 资源包，然后解压并将其中的 textures 和 models 两个文件夹复制到项目根目录下（也即 RSC.sln 同级路径下），最后使用图形界面或者命令行 MSBuild 启动 solution 或者 vcxproj 配置文件。
+
 ## 演示程序渲染结果
 
 ### 纯色立方体
