@@ -8,6 +8,7 @@
 #pragma once
 
 #include <comdef.h>
+#include <initguid.h> // MUST include before dxgidebug.h
 #include <dxgidebug.h>
 #include <string>
 #include <windows.h>
